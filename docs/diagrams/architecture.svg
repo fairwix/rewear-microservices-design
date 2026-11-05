@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1280" viewBox="0 0 1920 1280"><rect width="100%" height="100%" fill="#f5f7fb"/>
+<text x="70" y="77.4" font-family="Arial,DejaVu Sans,sans-serif" font-size="44" fill="#17243b" text-anchor="start">ReWear / Микросервисная архитектура</text>
+<text x="70" y="123.25" font-family="Arial,DejaVu Sans,sans-serif" font-size="25" fill="#637086" text-anchor="start">4 бизнес-сервиса · отдельные PostgreSQL · локальный Docker Compose</text>
+<rect x="650" y="160" width="620" height="90" rx="16" fill="white" stroke="#637086" stroke-width="2"/>
+<text x="960.0" y="202.95" font-family="Arial,DejaVu Sans,sans-serif" font-size="27" fill="#17243b" text-anchor="middle">Покупатель / веб-интерфейс</text>
+<rect x="650" y="295" width="620" height="90" rx="16" fill="#eaf0ff" stroke="#3458be" stroke-width="2"/>
+<text x="960.0" y="337.95" font-family="Arial,DejaVu Sans,sans-serif" font-size="27" fill="#17243b" text-anchor="middle">Nginx / API Gateway</text>
+<polyline points="960,250 960,295" fill="none" stroke="#3458be" stroke-width="3"/>
+<polygon points="960,295 953.9256276523541,282.38643584936614 966.0743723476459,282.38643584936614" fill="#3458be"/>
+<text x="980" y="276.0" font-family="Arial,DejaVu Sans,sans-serif" font-size="20" fill="#17243b" text-anchor="start">HTTP</text>
+<polyline points="960,385 960,405 270,405 270,430" fill="none" stroke="#3458be" stroke-width="3"/>
+<polygon points="270,430 263.9256276523542,417.38643584936614 276.0743723476458,417.38643584936614" fill="#3458be"/>
+<text x="270" y="407.3" font-family="Arial,DejaVu Sans,sans-serif" font-size="18" fill="#17243b" text-anchor="middle">HTTP: каталог</text>
+<polyline points="960,385 960,405 710,405 710,430" fill="none" stroke="#3458be" stroke-width="3"/>
+<polygon points="710,430 703.9256276523541,417.38643584936614 716.0743723476459,417.38643584936614" fill="#3458be"/>
+<text x="710" y="407.3" font-family="Arial,DejaVu Sans,sans-serif" font-size="18" fill="#17243b" text-anchor="middle">HTTP: корзина</text>
+<polyline points="960,385 960,405 1150,405 1150,430" fill="none" stroke="#3458be" stroke-width="3"/>
+<polygon points="1150,430 1143.9256276523543,417.38643584936614 1156.0743723476457,417.38643584936614" fill="#3458be"/>
+<text x="1150" y="407.3" font-family="Arial,DejaVu Sans,sans-serif" font-size="18" fill="#17243b" text-anchor="middle">HTTP: заказы</text>
+<polyline points="960,385 960,405 1590,405 1590,430" fill="none" stroke="#3458be" stroke-width="3"/>
+<polygon points="1590,430 1583.9256276523543,417.38643584936614 1596.0743723476457,417.38643584936614" fill="#3458be"/>
+<text x="1590" y="407.3" font-family="Arial,DejaVu Sans,sans-serif" font-size="18" fill="#17243b" text-anchor="middle">HTTP: уведомления</text>
+<rect x="90" y="430" width="360" height="145" rx="16" fill="white" stroke="#3458be" stroke-width="2"/>
+<text x="270.0" y="472.95" font-family="Arial,DejaVu Sans,sans-serif" font-size="27" fill="#17243b" text-anchor="middle">Catalog Service</text>
+<text x="270.0" y="509.85" font-family="Arial,DejaVu Sans,sans-serif" font-size="21" fill="#637086" text-anchor="middle">Товары и цены</text>
+<text x="270.0" y="536.85" font-family="Arial,DejaVu Sans,sans-serif" font-size="21" fill="#637086" text-anchor="middle">Уникальные остатки, резервы</text>
+<polyline points="300,575 300,630" fill="none" stroke="#637086" stroke-width="3"/>
+<polygon points="300,630 293.9256276523542,617.3864358493661 306.0743723476458,617.3864358493661" fill="#637086"/>
+<text x="320" y="611.0" font-family="Arial,DejaVu Sans,sans-serif" font-size="20" fill="#637086" text-anchor="start">SQL</text>
+<rect x="160" y="630" width="280" height="92" rx="16" fill="#eef5f4" stroke="#168275" stroke-width="2"/>
+<text x="300.0" y="672.95" font-family="Arial,DejaVu Sans,sans-serif" font-size="27" fill="#17243b" text-anchor="middle">catalog_db</text>
+<text x="300.0" y="709.85" font-family="Arial,DejaVu Sans,sans-serif" font-size="21" fill="#637086" text-anchor="middle">PostgreSQL</text>
+<rect x="530" y="430" width="360" height="145" rx="16" fill="white" stroke="#3458be" stroke-width="2"/>
+<text x="710.0" y="472.95" font-family="Arial,DejaVu Sans,sans-serif" font-size="27" fill="#17243b" text-anchor="middle">Cart Service</text>
+<text x="710.0" y="509.85" font-family="Arial,DejaVu Sans,sans-serif" font-size="21" fill="#637086" text-anchor="middle">Выбранные вещи</text>
+<text x="710.0" y="536.85" font-family="Arial,DejaVu Sans,sans-serif" font-size="21" fill="#637086" text-anchor="middle">Корзина без резерва</text>
+<polyline points="740,575 740,630" fill="none" stroke="#637086" stroke-width="3"/>
+<polygon points="740,630 733.9256276523541,617.3864358493661 746.0743723476459,617.3864358493661" fill="#637086"/>
+<text x="760" y="611.0" font-family="Arial,DejaVu Sans,sans-serif" font-size="20" fill="#637086" text-anchor="start">SQL</text>
+<rect x="600" y="630" width="280" height="92" rx="16" fill="#eef5f4" stroke="#168275" stroke-width="2"/>
+<text x="740.0" y="672.95" font-family="Arial,DejaVu Sans,sans-serif" font-size="27" fill="#17243b" text-anchor="middle">cart_db</text>
+<text x="740.0" y="709.85" font-family="Arial,DejaVu Sans,sans-serif" font-size="21" fill="#637086" text-anchor="middle">PostgreSQL</text>
+<rect x="970" y="430" width="360" height="145" rx="16" fill="white" stroke="#3458be" stroke-width="2"/>
+<text x="1150.0" y="472.95" font-family="Arial,DejaVu Sans,sans-serif" font-size="27" fill="#17243b" text-anchor="middle">Order Service</text>
+<text x="1150.0" y="509.85" font-family="Arial,DejaVu Sans,sans-serif" font-size="21" fill="#637086" text-anchor="middle">Заказ и тестовая оплата</text>
+<text x="1150.0" y="536.85" font-family="Arial,DejaVu Sans,sans-serif" font-size="21" fill="#637086" text-anchor="middle">Outbox и восстановление</text>
+<polyline points="1180,575 1180,630" fill="none" stroke="#637086" stroke-width="3"/>
+<polygon points="1180,630 1173.9256276523543,617.3864358493661 1186.0743723476457,617.3864358493661" fill="#637086"/>
+<text x="1200" y="611.0" font-family="Arial,DejaVu Sans,sans-serif" font-size="20" fill="#637086" text-anchor="start">SQL</text>
+<rect x="1040" y="630" width="280" height="92" rx="16" fill="#eef5f4" stroke="#168275" stroke-width="2"/>
+<text x="1180.0" y="672.95" font-family="Arial,DejaVu Sans,sans-serif" font-size="27" fill="#17243b" text-anchor="middle">order_db</text>
+<text x="1180.0" y="709.85" font-family="Arial,DejaVu Sans,sans-serif" font-size="21" fill="#637086" text-anchor="middle">PostgreSQL</text>
+<rect x="1410" y="430" width="360" height="145" rx="16" fill="white" stroke="#3458be" stroke-width="2"/>
+<text x="1590.0" y="472.95" font-family="Arial,DejaVu Sans,sans-serif" font-size="27" fill="#17243b" text-anchor="middle">Notification Service</text>
+<text x="1590.0" y="509.85" font-family="Arial,DejaVu Sans,sans-serif" font-size="21" fill="#637086" text-anchor="middle">Уведомления в приложении</text>
+<text x="1590.0" y="536.85" font-family="Arial,DejaVu Sans,sans-serif" font-size="21" fill="#637086" text-anchor="middle">Дедупликация event_id</text>
+<polyline points="1620,575 1620,630" fill="none" stroke="#637086" stroke-width="3"/>
+<polygon points="1620,630 1613.9256276523543,617.3864358493661 1626.0743723476457,617.3864358493661" fill="#637086"/>
+<text x="1640" y="611.0" font-family="Arial,DejaVu Sans,sans-serif" font-size="20" fill="#637086" text-anchor="start">SQL</text>
+<rect x="1480" y="630" width="280" height="92" rx="16" fill="#eef5f4" stroke="#168275" stroke-width="2"/>
+<text x="1620.0" y="672.95" font-family="Arial,DejaVu Sans,sans-serif" font-size="27" fill="#17243b" text-anchor="middle">notification_db</text>
+<text x="1620.0" y="709.85" font-family="Arial,DejaVu Sans,sans-serif" font-size="21" fill="#637086" text-anchor="middle">PostgreSQL</text>
+<polyline points="550,575 550,800 475,800 475,505 450,505" fill="none" stroke="#3458be" stroke-width="3"/>
+<polygon points="450,505 462.61356415063386,498.9256276523542 462.61356415063386,511.0743723476458" fill="#3458be"/>
+<text x="585" y="795.4" font-family="Arial,DejaVu Sans,sans-serif" font-size="24" fill="#17243b" text-anchor="start">Cart → Catalog: HTTP / batch products</text>
+<polyline points="990,575 990,865 510,865 510,530 530,530" fill="none" stroke="#3458be" stroke-width="3"/>
+<polygon points="530,530 517.3864358493661,536.0743723476459 517.3864358493661,523.9256276523541" fill="#3458be"/>
+<text x="550" y="853.7" font-family="Arial,DejaVu Sans,sans-serif" font-size="22" fill="#17243b" text-anchor="start">Order → Cart: HTTP / read, remove-items</text>
+<polyline points="1010,575 1010,930 60,930 60,505 90,505" fill="none" stroke="#3458be" stroke-width="3"/>
+<polygon points="90,505 77.38643584936614,511.0743723476458 77.38643584936614,498.9256276523542" fill="#3458be"/>
+<text x="90" y="965.4" font-family="Arial,DejaVu Sans,sans-serif" font-size="24" fill="#17243b" text-anchor="start">Order → Catalog: HTTP / reserve, read, complete, release</text>
+<rect x="1330" y="1045" width="460" height="112" rx="16" fill="#e8f6f2" stroke="#168275" stroke-width="2"/>
+<text x="1560.0" y="1087.95" font-family="Arial,DejaVu Sans,sans-serif" font-size="27" fill="#17243b" text-anchor="middle">RabbitMQ</text>
+<text x="1560.0" y="1124.85" font-family="Arial,DejaVu Sans,sans-serif" font-size="21" fill="#637086" text-anchor="middle">orders.events → notifications.orders</text>
+<polyline points="1330,550 1340,550 1340,1015 1295,1015 1295,1101 1330,1101" fill="none" stroke="#168275" stroke-width="3" stroke-dasharray="10 8"/>
+<polygon points="1330,1101 1317.386435849366,1107.0743723476457 1317.386435849366,1094.9256276523543" fill="#168275"/>
+<text x="760" y="1060.4" font-family="Arial,DejaVu Sans,sans-serif" font-size="24" fill="#168275" text-anchor="start">AMQP: OrderConfirmed</text>
+<text x="760" y="1094.4" font-family="Arial,DejaVu Sans,sans-serif" font-size="24" fill="#168275" text-anchor="start">или OrderCancelled</text>
+<polyline points="1790,1101 1840,1101 1840,505 1770,505" fill="none" stroke="#168275" stroke-width="3" stroke-dasharray="10 8"/>
+<polygon points="1770,505 1782.613564150634,498.9256276523542 1782.613564150634,511.0743723476458" fill="#168275"/>
+<text x="1410" y="1005.55" font-family="Arial,DejaVu Sans,sans-serif" font-size="23" fill="#168275" text-anchor="start">AMQP: события → Notification</text>
+<polyline points="75,1205 155,1205" fill="none" stroke="#3458be" stroke-width="3"/>
+<polygon points="155,1205 142.38643584936614,1211.0743723476457 142.38643584936614,1198.9256276523543" fill="#3458be"/>
+<text x="175" y="1211.55" font-family="Arial,DejaVu Sans,sans-serif" font-size="23" fill="#17243b" text-anchor="start">Синхронно (HTTP / SQL)</text>
+<polyline points="660,1205 740,1205" fill="none" stroke="#168275" stroke-width="3" stroke-dasharray="10 8"/>
+<polygon points="740,1205 727.3864358493661,1211.0743723476457 727.3864358493661,1198.9256276523543" fill="#168275"/>
+<text x="760" y="1211.55" font-family="Arial,DejaVu Sans,sans-serif" font-size="23" fill="#17243b" text-anchor="start">Асинхронно (AMQP)</text>
+<text x="1300" y="1211.55" font-family="Arial,DejaVu Sans,sans-serif" font-size="23" fill="#637086" text-anchor="start">Кеш не планируется</text>
+</svg>

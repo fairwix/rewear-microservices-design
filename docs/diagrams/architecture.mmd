@@ -1,0 +1,26 @@
+flowchart TB
+    UI["Покупатель / статический веб-интерфейс"]
+    GW["Nginx gateway — маршрутизация, без бизнес-БД"]
+    C["Catalog Service — товары, цены, уникальные остатки"]
+    A["Cart Service — выбранные вещи, без резерва"]
+    O["Order Service — заказы, тестовая оплата, outbox, восстановление"]
+    N["Notification Service — уведомления, дедупликация"]
+    CD[("catalog_db / PostgreSQL")]
+    AD[("cart_db / PostgreSQL")]
+    OD[("order_db / PostgreSQL")]
+    ND[("notification_db / PostgreSQL")]
+    B["RabbitMQ — orders.events / notifications.orders"]
+    UI -->|HTTP| GW
+    GW -->|HTTP: каталог| C
+    GW -->|HTTP: корзина| A
+    GW -->|HTTP: оформление и статус| O
+    GW -->|HTTP: уведомления| N
+    A -->|HTTP: batch products| C
+    O -->|HTTP: reserve / read / complete / release| C
+    O -->|HTTP: cart / remove-items| A
+    C -->|SQL| CD
+    A -->|SQL| AD
+    O -->|SQL| OD
+    N -->|SQL| ND
+    O -.->|AMQP: OrderConfirmed / OrderCancelled| B
+    B -.->|AMQP: события заказа| N
