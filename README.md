@@ -7,6 +7,7 @@
 ## Материалы для сдачи
 
 - [Полный отчёт](docs/report.md) — титульный лист, функциональные и нефункциональные требования, архитектура, модель данных, API, события и trade-offs.
+- Подробно по каждому пункту ТЗ: [Catalog](docs/report.md#61-catalog-service), [Cart](docs/report.md#62-cart-service), [Order](docs/report.md#63-order-service), [Notification](docs/report.md#64-notification-service).
 - [Архитектурная диаграмма PNG](docs/diagrams/architecture.png).
 - [Редактируемый источник SVG](docs/diagrams/architecture.svg) и [Mermaid](docs/diagrams/architecture.mmd).
 - [Проверка соответствия каждому пункту ТЗ](docs/compliance.md).
