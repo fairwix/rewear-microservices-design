@@ -3,7 +3,7 @@
 <text x="75" y="320.4" font-family="Arial,DejaVu Sans,sans-serif" font-size="24" fill="#637086" text-anchor="start">Minikube / namespace rewear</text>
 <text x="75" y="358.7" font-family="Arial,DejaVu Sans,sans-serif" font-size="22" fill="#637086" text-anchor="start">или Docker Compose</text>
 <text x="70" y="77.4" font-family="Arial,DejaVu Sans,sans-serif" font-size="44" fill="#17243b" text-anchor="start">ReWear / Микросервисная архитектура</text>
-<text x="70" y="123.25" font-family="Arial,DejaVu Sans,sans-serif" font-size="25" fill="#637086" text-anchor="start">4 бизнес-сервиса · PostgreSQL + RabbitMQ · Compose / Kubernetes (Minikube)</text>
+<text x="70" y="123.25" font-family="Arial,DejaVu Sans,sans-serif" font-size="25" fill="#637086" text-anchor="start">4 бизнес-сервиса · PostgreSQL + RabbitMQ + Redis · Compose / Kubernetes (Minikube)</text>
 <rect x="650" y="160" width="620" height="90" rx="16" fill="white" stroke="#637086" stroke-width="2"/>
 <text x="960.0" y="202.95" font-family="Arial,DejaVu Sans,sans-serif" font-size="27" fill="#17243b" text-anchor="middle">Покупатель / веб-интерфейс</text>
 <rect x="650" y="295" width="620" height="90" rx="16" fill="#eaf0ff" stroke="#3458be" stroke-width="2"/>
@@ -71,7 +71,13 @@
 <text x="550" y="853.7" font-family="Arial,DejaVu Sans,sans-serif" font-size="22" fill="#17243b" text-anchor="start">Order → Cart: HTTP / read, remove-items</text>
 <polyline points="1010,575 1010,930 60,930 60,505 90,505" fill="none" stroke="#3458be" stroke-width="3"/>
 <polygon points="90,505 77.38643584936614,511.0743723476458 77.38643584936614,498.9256276523542" fill="#3458be"/>
-<text x="90" y="965.4" font-family="Arial,DejaVu Sans,sans-serif" font-size="24" fill="#17243b" text-anchor="start">Order → Catalog: HTTP / reserve, read, complete, release</text>
+<text x="140" y="965.4" font-family="Arial,DejaVu Sans,sans-serif" font-size="24" fill="#17243b" text-anchor="start">Order → Catalog: HTTP / reserve, read, complete, release</text>
+<rect x="160" y="1045" width="460" height="112" rx="16" fill="#eaf0ff" stroke="#3458be" stroke-width="2"/>
+<text x="390.0" y="1087.95" font-family="Arial,DejaVu Sans,sans-serif" font-size="27" fill="#17243b" text-anchor="middle">Redis / кеш Catalog</text>
+<text x="390.0" y="1124.85" font-family="Arial,DejaVu Sans,sans-serif" font-size="21" fill="#637086" text-anchor="middle">TTL 60 с · без остатков</text>
+<polyline points="110,575 110,1000 385,1000 385,1045" fill="none" stroke="#3458be" stroke-width="3"/>
+<polygon points="385,1045 378.9256276523542,1032.386435849366 391.0743723476458,1032.386435849366" fill="#3458be"/>
+<text x="145" y="1026.7" font-family="Arial,DejaVu Sans,sans-serif" font-size="22" fill="#17243b" text-anchor="start">RESP: кеш чтения</text>
 <rect x="1330" y="1045" width="460" height="112" rx="16" fill="#e8f6f2" stroke="#168275" stroke-width="2"/>
 <text x="1560.0" y="1087.95" font-family="Arial,DejaVu Sans,sans-serif" font-size="27" fill="#17243b" text-anchor="middle">RabbitMQ</text>
 <text x="1560.0" y="1124.85" font-family="Arial,DejaVu Sans,sans-serif" font-size="21" fill="#637086" text-anchor="middle">orders.events → notifications.orders</text>
@@ -88,5 +94,5 @@
 <polyline points="660,1205 740,1205" fill="none" stroke="#168275" stroke-width="3" stroke-dasharray="10 8"/>
 <polygon points="740,1205 727.3864358493661,1211.0743723476457 727.3864358493661,1198.9256276523543" fill="#168275"/>
 <text x="760" y="1211.55" font-family="Arial,DejaVu Sans,sans-serif" font-size="23" fill="#17243b" text-anchor="start">Асинхронно (AMQP)</text>
-<text x="1300" y="1211.55" font-family="Arial,DejaVu Sans,sans-serif" font-size="23" fill="#637086" text-anchor="start">Кеш не планируется</text>
+<text x="1300" y="1211.55" font-family="Arial,DejaVu Sans,sans-serif" font-size="23" fill="#637086" text-anchor="start">Redis: кеш, PostgreSQL: данные</text>
 </svg>

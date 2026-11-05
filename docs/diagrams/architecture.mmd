@@ -10,6 +10,7 @@ flowchart TB
         AD[("cart_db / PostgreSQL")]
         OD[("order_db / PostgreSQL")]
         ND[("notification_db / PostgreSQL")]
+        R[("Redis / кеш Catalog — TTL 60 с, без остатков")]
         B["RabbitMQ — orders.events / notifications.orders"]
         GW -->|"HTTP: каталог"| C
         GW -->|"HTTP: корзина"| A
@@ -18,6 +19,7 @@ flowchart TB
         A -->|"HTTP: batch products"| C
         O -->|"HTTP: reserve / read / complete / release"| C
         O -->|"HTTP: cart / remove-items"| A
+        C -->|"RESP: cache-aside"| R
         C -->|SQL| CD
         A -->|SQL| AD
         O -->|SQL| OD

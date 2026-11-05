@@ -4,13 +4,13 @@
 
 ## Этапы
 
-1. Создать Catalog/Cart/Order/Notification на C# / ASP.NET Core, Dockerfile и миграции; четыре PostgreSQL и RabbitMQ.
-2. Реализовать Catalog и seed 20–30 вещей: фильтры, карточка, атомарные reserve/read/complete/release.
+1. Создать Catalog/Cart/Order/Notification на C# / ASP.NET Core, Dockerfile и миграции; четыре PostgreSQL, RabbitMQ и Redis.
+2. Реализовать Catalog и seed 20–30 вещей: фильтры, карточка, атомарные reserve/read/complete/release; Redis cache-aside для описаний/выборок, TTL 60 с, очистка после seed, fallback на БД.
 3. Реализовать корзину: максимум 10 вещей, без дубликатов, данные из Catalog, безопасная очистка купленных строк.
 4. Реализовать Order: Idempotency-Key, снимок корзины/цен, симулятор оплаты, сохранённые фазы и восстановление.
 5. Подключить outbox и RabbitMQ consumer: confirms, ACK после записи, event_id и dead-letter queue.
 6. Добавить интерфейс и Nginx: каталог, карточка, корзина/оформление, заказ и уведомления; при 202 — опрос статуса.
-7. Собрать Compose для разработки; затем `infra/k8s` для Minikube: namespace, Deployments, StatefulSets, Services, PVC, ConfigMap/Secret, probes и ресурсы — согласно §2.4 отчёта. Использовать те же образы; credentials создавать локально, gateway открывать через port-forward.
+7. Собрать Compose для разработки; затем `infra/k8s` для Minikube: namespace, Deployments (включая Redis без PVC), StatefulSets, Services, PVC, ConfigMap/Secret, probes и ресурсы — согласно §2.4 отчёта. Использовать те же образы; credentials создавать локально, gateway открывать через port-forward.
 8. Проверить оба варианта запуска и задокументировать фактические команды. Kubernetes не заменяет восстановление бизнес-процесса внутри Order.
 
 ## Приёмка
@@ -18,6 +18,7 @@
 - Успех → CONFIRMED, вещи SOLD, одно уведомление, купленные строки удалены.
 - DECLINED → CANCELLED, резерв освобождён, корзина сохранена.
 - Конкуренция двух покупателей / частично недоступный набор → нет двойной продажи и частичного резерва.
+- Повторное чтение каталога попадает в кеш; TTL/очистка обновляют копии; при отказе Redis работает fallback, остатки и reserve всегда берутся из PostgreSQL.
 - Повтор ключа, команды и события → без дубликатов; другое тело с тем же ключом → 409.
 - Потеря ответа / рестарт Order после SOLD → процесс безопасно завершается; запоздавший reserve не обходит RELEASED.
 - Сбой RabbitMQ/Notification/Cart → результат покупки сохранён, отложенная работа продолжается после возврата.
