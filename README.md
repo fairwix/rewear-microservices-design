@@ -1,33 +1,21 @@
 # ReWear — магазин винтажной одежды
 
-**Лабораторная работа №6: проектирование микросервисной архитектуры.**
+Лабораторная №6: проектирование микросервисной архитектуры. Четыре сервиса: Catalog, Cart, Order и Notification; отдельные PostgreSQL, HTTP и RabbitMQ. Order — бизнес-оркестратор покупки.
 
-Проект небольшого e-commerce магазина: каждая вещь существует в одном экземпляре, поэтому при оформлении заказа нужно предотвратить двойную продажу. Предусмотрены каталог, корзина, оформление с тестовой оплатой и уведомления внутри приложения.
+## Материалы
 
-## Материалы для сдачи
+- [Отчёт по всем пунктам ТЗ](docs/report.md).
+- [Диаграмма PNG](docs/diagrams/architecture.png), [SVG](docs/diagrams/architecture.svg), [Mermaid](docs/diagrams/architecture.mmd).
+- [Соответствие ТЗ](docs/compliance.md), [план реализации](docs/implementation-plan.md), [задание](docs/assignment.txt).
 
-- [Полный отчёт](docs/report.md) — титульный лист, функциональные и нефункциональные требования, архитектура, модель данных, API, события и trade-offs.
-- Подробно по каждому пункту ТЗ: [Catalog](docs/report.md#61-catalog-service), [Cart](docs/report.md#62-cart-service), [Order](docs/report.md#63-order-service), [Notification](docs/report.md#64-notification-service).
-- [Архитектурная диаграмма PNG](docs/diagrams/architecture.png).
-- [Редактируемый источник SVG](docs/diagrams/architecture.svg) и [Mermaid](docs/diagrams/architecture.mmd).
-- [Проверка соответствия каждому пункту ТЗ](docs/compliance.md).
-- [План последующей реализации и демонстрации](docs/implementation-plan.md).
-- [Текст задания](docs/assignment.txt).
+![Архитектура](docs/diagrams/architecture.png)
 
-![Архитектура ReWear](docs/diagrams/architecture.png)
+План запуска: Docker Compose для разработки и Kubernetes через Minikube для демонстрации на одной машине. В репозитории готова архитектурная работа; приложение и конфигурации запуска относятся к следующему этапу.
 
-## Объём проекта
-
-Четыре бизнес-сервиса: Catalog, Cart, Order и Notification. У каждого отдельная PostgreSQL БД. Межсервисные запросы выполняются по HTTP; события заказов доставляются через RabbitMQ. Nginx служит gateway и раздаёт статический интерфейс. Тестовая оплата входит в Order Service.
-
-Репозиторий содержит результат этапа **проектирования**. Рабочего приложения и команды запуска бизнес-сервисов здесь пока нет: они относятся к следующему этапу лабораторных. Будущий локальный запуск спроектирован для Docker Compose. Redis, Kubernetes, реальные платежи, доставка и регистрация в объём реализации не включены.
-
-Для чтения работы ничего устанавливать не нужно. Для повторной генерации диаграммы:
+Для повторного построения диаграммы:
 
 ```sh
 python3 -m venv .venv
 .venv/bin/pip install -r scripts/requirements.txt
 .venv/bin/python scripts/render_diagram.py
 ```
-
-Авторы и группа приведены на титульном листе отчёта. Дата: 05.11.2026.

@@ -42,8 +42,12 @@ def line(points, color=BLUE, dashed=False, arrow=True):
         d.polygon(pts,fill=color)
         svg.append(f'<polygon points="{" ".join(f"{x},{y}" for x,y in pts)}" fill="{color}"/>')
 
+d.rounded_rectangle((40,275,1875,1175),radius=24,outline=GREY,width=2)
+svg.append(f'<rect x="40" y="275" width="1835" height="900" rx="24" fill="none" stroke="{GREY}" stroke-width="2"/>')
+text(75,300,'Minikube / namespace rewear',24,GREY)
+text(75,340,'или Docker Compose',22,GREY)
 text(70,40,'ReWear / Микросервисная архитектура',44)
-text(70,102,'4 бизнес-сервиса · отдельные PostgreSQL · локальный Docker Compose',25,GREY)
+text(70,102,'4 бизнес-сервиса · PostgreSQL + RabbitMQ · Compose / Kubernetes (Minikube)',25,GREY)
 box(650,160,620,90,'Покупатель / веб-интерфейс',(),border=GREY)
 box(650,295,620,90,'Nginx / API Gateway',(),fill='#eaf0ff')
 line([(960,250),(960,295)]); text(980,259,'HTTP',20)

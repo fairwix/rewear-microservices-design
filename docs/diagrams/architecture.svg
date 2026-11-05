@@ -1,6 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1280" viewBox="0 0 1920 1280"><rect width="100%" height="100%" fill="#f5f7fb"/>
+<rect x="40" y="275" width="1835" height="900" rx="24" fill="none" stroke="#637086" stroke-width="2"/>
+<text x="75" y="320.4" font-family="Arial,DejaVu Sans,sans-serif" font-size="24" fill="#637086" text-anchor="start">Minikube / namespace rewear</text>
+<text x="75" y="358.7" font-family="Arial,DejaVu Sans,sans-serif" font-size="22" fill="#637086" text-anchor="start">или Docker Compose</text>
 <text x="70" y="77.4" font-family="Arial,DejaVu Sans,sans-serif" font-size="44" fill="#17243b" text-anchor="start">ReWear / Микросервисная архитектура</text>
-<text x="70" y="123.25" font-family="Arial,DejaVu Sans,sans-serif" font-size="25" fill="#637086" text-anchor="start">4 бизнес-сервиса · отдельные PostgreSQL · локальный Docker Compose</text>
+<text x="70" y="123.25" font-family="Arial,DejaVu Sans,sans-serif" font-size="25" fill="#637086" text-anchor="start">4 бизнес-сервиса · PostgreSQL + RabbitMQ · Compose / Kubernetes (Minikube)</text>
 <rect x="650" y="160" width="620" height="90" rx="16" fill="white" stroke="#637086" stroke-width="2"/>
 <text x="960.0" y="202.95" font-family="Arial,DejaVu Sans,sans-serif" font-size="27" fill="#17243b" text-anchor="middle">Покупатель / веб-интерфейс</text>
 <rect x="650" y="295" width="620" height="90" rx="16" fill="#eaf0ff" stroke="#3458be" stroke-width="2"/>
