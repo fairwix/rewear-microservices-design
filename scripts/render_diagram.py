@@ -6,7 +6,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'docs' / 'diagrams'
-W, H = 1920, 1280
+W, H = 1920, 1400
 BG, INK, BLUE, GREEN, GREY = '#f5f7fb', '#17243b', '#3458be', '#168275', '#637086'
 img = Image.new('RGB', (W, H), BG)
 d = ImageDraw.Draw(img)
@@ -42,8 +42,8 @@ def line(points, color=BLUE, dashed=False, arrow=True):
         d.polygon(pts,fill=color)
         svg.append(f'<polygon points="{" ".join(f"{x},{y}" for x,y in pts)}" fill="{color}"/>')
 
-d.rounded_rectangle((40,275,1875,1175),radius=24,outline=GREY,width=2)
-svg.append(f'<rect x="40" y="275" width="1835" height="900" rx="24" fill="none" stroke="{GREY}" stroke-width="2"/>')
+d.rounded_rectangle((40,275,1875,1295),radius=24,outline=GREY,width=2)
+svg.append(f'<rect x="40" y="275" width="1835" height="1020" rx="24" fill="none" stroke="{GREY}" stroke-width="2"/>')
 text(75,300,'Minikube / namespace rewear',24,GREY)
 text(75,340,'или Docker Compose',22,GREY)
 text(70,40,'ReWear / Микросервисная архитектура',44)
@@ -55,7 +55,7 @@ xs=[90,530,970,1410]
 for x,route in zip(xs,['каталог','корзина','заказы','уведомления']):
     line([(960,385),(960,405),(x+180,405),(x+180,430)])
     text(x+180,392,'HTTP: '+route,18,center=True)
-services=[('Catalog Service',['Товары и цены','Уникальные остатки, резервы']),('Cart Service',['Выбранные вещи','Корзина без резерва']),('Order Service',['Заказ и тестовая оплата','Outbox и восстановление']),('Notification Service',['Уведомления в приложении','Дедупликация event_id'])]
+services=[('Catalog Service',['Товары и цены','Уникальные остатки, резервы']),('Cart Service',['Выбранные вещи','Корзина без резерва']),('Order Service',['Оркестратор саги','Заказ и тестовая оплата','Outbox и восстановление']),('Notification Service',['Уведомления в приложении','Дедупликация event_id'])]
 for x,(title,ls),db in zip(xs,services,['catalog_db','cart_db','order_db','notification_db']):
     box(x,430,360,145,title,ls)
     line([(x+210,575),(x+210,630)],GREY); text(x+230,594,'SQL',20,GREY)
@@ -67,18 +67,30 @@ line([(990,575),(990,865),(510,865),(510,530),(530,530)])
 text(550,835,'Order → Cart: HTTP / read, remove-items',22)
 line([(1010,575),(1010,930),(60,930),(60,505),(90,505)])
 text(140,945,'Order → Catalog: HTTP / reserve, read, complete, release',24)
-box(160,1045,460,112,'Redis / кеш Catalog',['TTL 60 с · без остатков'],fill='#eaf0ff')
+box(160,1045,500,215,'Redis / кеш Catalog',[
+    'Описания, цены для показа',
+    'Результаты фильтрации · TTL 60 с',
+    'Наличие и резерв — PostgreSQL',
+    'Redis недоступен → PostgreSQL',
+],fill='#eaf0ff')
 line([(110,575),(110,1000),(385,1000),(385,1045)])
 text(145,1008,'RESP: кеш чтения',22)
-box(1330,1045,460,112,'RabbitMQ',['orders.events → notifications.orders'],fill='#e8f6f2',border=GREEN)
-line([(1330,550),(1340,550),(1340,1015),(1295,1015),(1295,1101),(1330,1101)],GREEN,True)
+box(1330,1045,460,240,'RabbitMQ',fill='#e8f6f2',border=GREEN)
+for y, label in [(1105,'Exchange: orders.events'),(1195,'Queue: notifications.orders')]:
+    d.rounded_rectangle((1360,y,1760,y+54),radius=10,fill='white',outline=GREEN,width=2)
+    svg.append(f'<rect x="1360" y="{y}" width="400" height="54" rx="10" fill="white" stroke="{GREEN}" stroke-width="2"/>')
+    text(1560,y+15,label,22,center=True)
+line([(1560,1159),(1560,1195)],GREEN,True)
+text(1580,1168,'bindings',18,GREEN)
+text(1560,1258,'Notification: ACK после commit · UQ event_id',19,GREY,True)
+line([(1330,550),(1340,550),(1340,1015),(1295,1015),(1295,1132),(1360,1132)],GREEN,True)
 text(760,1040,'AMQP: OrderConfirmed',24,GREEN)
 text(760,1074,'или OrderCancelled',24,GREEN)
-line([(1790,1101),(1840,1101),(1840,505),(1770,505)],GREEN,True)
+line([(1760,1222),(1840,1222),(1840,505),(1770,505)],GREEN,True)
 text(1410,986,'AMQP: события → Notification',23,GREEN)
-line([(75,1205),(155,1205)],BLUE); text(175,1192,'Синхронно (HTTP / SQL)',23)
-line([(660,1205),(740,1205)],GREEN,True); text(760,1192,'Асинхронно (AMQP)',23)
-text(1300,1192,'Redis: кеш, PostgreSQL: данные',23,GREY)
+line([(75,1335),(155,1335)],BLUE); text(175,1322,'Синхронно (HTTP / SQL)',23)
+line([(660,1335),(740,1335)],GREEN,True); text(760,1322,'Асинхронно (AMQP)',23)
+text(1300,1322,'Redis: кеш, PostgreSQL: данные',23,GREY)
 OUT.mkdir(parents=True, exist_ok=True)
 svg.append('</svg>')
 (OUT/'architecture.svg').write_text('\n'.join(svg),encoding='utf-8')

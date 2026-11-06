@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1280" viewBox="0 0 1920 1280"><rect width="100%" height="100%" fill="#f5f7fb"/>
-<rect x="40" y="275" width="1835" height="900" rx="24" fill="none" stroke="#637086" stroke-width="2"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1400" viewBox="0 0 1920 1400"><rect width="100%" height="100%" fill="#f5f7fb"/>
+<rect x="40" y="275" width="1835" height="1020" rx="24" fill="none" stroke="#637086" stroke-width="2"/>
 <text x="75" y="320.4" font-family="Arial,DejaVu Sans,sans-serif" font-size="24" fill="#637086" text-anchor="start">Minikube / namespace rewear</text>
 <text x="75" y="358.7" font-family="Arial,DejaVu Sans,sans-serif" font-size="22" fill="#637086" text-anchor="start">или Docker Compose</text>
 <text x="70" y="77.4" font-family="Arial,DejaVu Sans,sans-serif" font-size="44" fill="#17243b" text-anchor="start">ReWear / Микросервисная архитектура</text>
@@ -45,8 +45,9 @@
 <text x="740.0" y="709.85" font-family="Arial,DejaVu Sans,sans-serif" font-size="21" fill="#637086" text-anchor="middle">PostgreSQL</text>
 <rect x="970" y="430" width="360" height="145" rx="16" fill="white" stroke="#3458be" stroke-width="2"/>
 <text x="1150.0" y="472.95" font-family="Arial,DejaVu Sans,sans-serif" font-size="27" fill="#17243b" text-anchor="middle">Order Service</text>
-<text x="1150.0" y="509.85" font-family="Arial,DejaVu Sans,sans-serif" font-size="21" fill="#637086" text-anchor="middle">Заказ и тестовая оплата</text>
-<text x="1150.0" y="536.85" font-family="Arial,DejaVu Sans,sans-serif" font-size="21" fill="#637086" text-anchor="middle">Outbox и восстановление</text>
+<text x="1150.0" y="509.85" font-family="Arial,DejaVu Sans,sans-serif" font-size="21" fill="#637086" text-anchor="middle">Оркестратор саги</text>
+<text x="1150.0" y="536.85" font-family="Arial,DejaVu Sans,sans-serif" font-size="21" fill="#637086" text-anchor="middle">Заказ и тестовая оплата</text>
+<text x="1150.0" y="563.85" font-family="Arial,DejaVu Sans,sans-serif" font-size="21" fill="#637086" text-anchor="middle">Outbox и восстановление</text>
 <polyline points="1180,575 1180,630" fill="none" stroke="#637086" stroke-width="3"/>
 <polygon points="1180,630 1173.9256276523543,617.3864358493661 1186.0743723476457,617.3864358493661" fill="#637086"/>
 <text x="1200" y="611.0" font-family="Arial,DejaVu Sans,sans-serif" font-size="20" fill="#637086" text-anchor="start">SQL</text>
@@ -72,27 +73,37 @@
 <polyline points="1010,575 1010,930 60,930 60,505 90,505" fill="none" stroke="#3458be" stroke-width="3"/>
 <polygon points="90,505 77.38643584936614,511.0743723476458 77.38643584936614,498.9256276523542" fill="#3458be"/>
 <text x="140" y="965.4" font-family="Arial,DejaVu Sans,sans-serif" font-size="24" fill="#17243b" text-anchor="start">Order → Catalog: HTTP / reserve, read, complete, release</text>
-<rect x="160" y="1045" width="460" height="112" rx="16" fill="#eaf0ff" stroke="#3458be" stroke-width="2"/>
-<text x="390.0" y="1087.95" font-family="Arial,DejaVu Sans,sans-serif" font-size="27" fill="#17243b" text-anchor="middle">Redis / кеш Catalog</text>
-<text x="390.0" y="1124.85" font-family="Arial,DejaVu Sans,sans-serif" font-size="21" fill="#637086" text-anchor="middle">TTL 60 с · без остатков</text>
+<rect x="160" y="1045" width="500" height="215" rx="16" fill="#eaf0ff" stroke="#3458be" stroke-width="2"/>
+<text x="410.0" y="1087.95" font-family="Arial,DejaVu Sans,sans-serif" font-size="27" fill="#17243b" text-anchor="middle">Redis / кеш Catalog</text>
+<text x="410.0" y="1124.85" font-family="Arial,DejaVu Sans,sans-serif" font-size="21" fill="#637086" text-anchor="middle">Описания, цены для показа</text>
+<text x="410.0" y="1151.85" font-family="Arial,DejaVu Sans,sans-serif" font-size="21" fill="#637086" text-anchor="middle">Результаты фильтрации · TTL 60 с</text>
+<text x="410.0" y="1178.85" font-family="Arial,DejaVu Sans,sans-serif" font-size="21" fill="#637086" text-anchor="middle">Наличие и резерв — PostgreSQL</text>
+<text x="410.0" y="1205.85" font-family="Arial,DejaVu Sans,sans-serif" font-size="21" fill="#637086" text-anchor="middle">Redis недоступен → PostgreSQL</text>
 <polyline points="110,575 110,1000 385,1000 385,1045" fill="none" stroke="#3458be" stroke-width="3"/>
 <polygon points="385,1045 378.9256276523542,1032.386435849366 391.0743723476458,1032.386435849366" fill="#3458be"/>
 <text x="145" y="1026.7" font-family="Arial,DejaVu Sans,sans-serif" font-size="22" fill="#17243b" text-anchor="start">RESP: кеш чтения</text>
-<rect x="1330" y="1045" width="460" height="112" rx="16" fill="#e8f6f2" stroke="#168275" stroke-width="2"/>
+<rect x="1330" y="1045" width="460" height="240" rx="16" fill="#e8f6f2" stroke="#168275" stroke-width="2"/>
 <text x="1560.0" y="1087.95" font-family="Arial,DejaVu Sans,sans-serif" font-size="27" fill="#17243b" text-anchor="middle">RabbitMQ</text>
-<text x="1560.0" y="1124.85" font-family="Arial,DejaVu Sans,sans-serif" font-size="21" fill="#637086" text-anchor="middle">orders.events → notifications.orders</text>
-<polyline points="1330,550 1340,550 1340,1015 1295,1015 1295,1101 1330,1101" fill="none" stroke="#168275" stroke-width="3" stroke-dasharray="10 8"/>
-<polygon points="1330,1101 1317.386435849366,1107.0743723476457 1317.386435849366,1094.9256276523543" fill="#168275"/>
+<rect x="1360" y="1105" width="400" height="54" rx="10" fill="white" stroke="#168275" stroke-width="2"/>
+<text x="1560" y="1138.7" font-family="Arial,DejaVu Sans,sans-serif" font-size="22" fill="#17243b" text-anchor="middle">Exchange: orders.events</text>
+<rect x="1360" y="1195" width="400" height="54" rx="10" fill="white" stroke="#168275" stroke-width="2"/>
+<text x="1560" y="1228.7" font-family="Arial,DejaVu Sans,sans-serif" font-size="22" fill="#17243b" text-anchor="middle">Queue: notifications.orders</text>
+<polyline points="1560,1159 1560,1195" fill="none" stroke="#168275" stroke-width="3" stroke-dasharray="10 8"/>
+<polygon points="1560,1195 1553.9256276523543,1182.386435849366 1566.0743723476457,1182.386435849366" fill="#168275"/>
+<text x="1580" y="1183.3" font-family="Arial,DejaVu Sans,sans-serif" font-size="18" fill="#168275" text-anchor="start">bindings</text>
+<text x="1560" y="1274.15" font-family="Arial,DejaVu Sans,sans-serif" font-size="19" fill="#637086" text-anchor="middle">Notification: ACK после commit · UQ event_id</text>
+<polyline points="1330,550 1340,550 1340,1015 1295,1015 1295,1132 1360,1132" fill="none" stroke="#168275" stroke-width="3" stroke-dasharray="10 8"/>
+<polygon points="1360,1132 1347.386435849366,1138.0743723476457 1347.386435849366,1125.9256276523543" fill="#168275"/>
 <text x="760" y="1060.4" font-family="Arial,DejaVu Sans,sans-serif" font-size="24" fill="#168275" text-anchor="start">AMQP: OrderConfirmed</text>
 <text x="760" y="1094.4" font-family="Arial,DejaVu Sans,sans-serif" font-size="24" fill="#168275" text-anchor="start">или OrderCancelled</text>
-<polyline points="1790,1101 1840,1101 1840,505 1770,505" fill="none" stroke="#168275" stroke-width="3" stroke-dasharray="10 8"/>
+<polyline points="1760,1222 1840,1222 1840,505 1770,505" fill="none" stroke="#168275" stroke-width="3" stroke-dasharray="10 8"/>
 <polygon points="1770,505 1782.613564150634,498.9256276523542 1782.613564150634,511.0743723476458" fill="#168275"/>
 <text x="1410" y="1005.55" font-family="Arial,DejaVu Sans,sans-serif" font-size="23" fill="#168275" text-anchor="start">AMQP: события → Notification</text>
-<polyline points="75,1205 155,1205" fill="none" stroke="#3458be" stroke-width="3"/>
-<polygon points="155,1205 142.38643584936614,1211.0743723476457 142.38643584936614,1198.9256276523543" fill="#3458be"/>
-<text x="175" y="1211.55" font-family="Arial,DejaVu Sans,sans-serif" font-size="23" fill="#17243b" text-anchor="start">Синхронно (HTTP / SQL)</text>
-<polyline points="660,1205 740,1205" fill="none" stroke="#168275" stroke-width="3" stroke-dasharray="10 8"/>
-<polygon points="740,1205 727.3864358493661,1211.0743723476457 727.3864358493661,1198.9256276523543" fill="#168275"/>
-<text x="760" y="1211.55" font-family="Arial,DejaVu Sans,sans-serif" font-size="23" fill="#17243b" text-anchor="start">Асинхронно (AMQP)</text>
-<text x="1300" y="1211.55" font-family="Arial,DejaVu Sans,sans-serif" font-size="23" fill="#637086" text-anchor="start">Redis: кеш, PostgreSQL: данные</text>
+<polyline points="75,1335 155,1335" fill="none" stroke="#3458be" stroke-width="3"/>
+<polygon points="155,1335 142.38643584936614,1341.0743723476457 142.38643584936614,1328.9256276523543" fill="#3458be"/>
+<text x="175" y="1341.55" font-family="Arial,DejaVu Sans,sans-serif" font-size="23" fill="#17243b" text-anchor="start">Синхронно (HTTP / SQL)</text>
+<polyline points="660,1335 740,1335" fill="none" stroke="#168275" stroke-width="3" stroke-dasharray="10 8"/>
+<polygon points="740,1335 727.3864358493661,1341.0743723476457 727.3864358493661,1328.9256276523543" fill="#168275"/>
+<text x="760" y="1341.55" font-family="Arial,DejaVu Sans,sans-serif" font-size="23" fill="#17243b" text-anchor="start">Асинхронно (AMQP)</text>
+<text x="1300" y="1341.55" font-family="Arial,DejaVu Sans,sans-serif" font-size="23" fill="#637086" text-anchor="start">Redis: кеш, PostgreSQL: данные</text>
 </svg>

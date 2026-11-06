@@ -4,14 +4,18 @@ flowchart TB
         GW["Nginx gateway — маршрутизация и интерфейс"]
         C["Catalog — товары, цены, уникальные остатки"]
         A["Cart — выбранные вещи без резерва"]
-        O["Order — заказы, тестовая оплата, сага и outbox"]
-        N["Notification — уведомления, дедупликация"]
+        O["Order — оркестратор саги; заказы, тестовая оплата, outbox"]
+        N["Notification — уведомления; ACK после commit, UQ event_id"]
         CD[("catalog_db / PostgreSQL")]
         AD[("cart_db / PostgreSQL")]
         OD[("order_db / PostgreSQL")]
         ND[("notification_db / PostgreSQL")]
-        R[("Redis / кеш Catalog — TTL 60 с, без остатков")]
-        B["RabbitMQ — orders.events / notifications.orders"]
+        R[("Redis / кеш Catalog<br/>Описания, цены для показа, результаты фильтрации<br/>TTL 60 с; наличие и резерв — PostgreSQL<br/>При отказе Redis — чтение PostgreSQL")]
+        subgraph BROKER["RabbitMQ"]
+            EX["Exchange: orders.events"]
+            Q["Queue: notifications.orders"]
+            EX -.->|"bindings: order.confirmed / order.cancelled"| Q
+        end
         GW -->|"HTTP: каталог"| C
         GW -->|"HTTP: корзина"| A
         GW -->|"HTTP: заказ"| O
@@ -24,7 +28,7 @@ flowchart TB
         A -->|SQL| AD
         O -->|SQL| OD
         N -->|SQL| ND
-        O -.->|"AMQP: OrderConfirmed / OrderCancelled"| B
-        B -.->|"AMQP: итог заказа"| N
+        O -.->|"AMQP: OrderConfirmed / OrderCancelled"| EX
+        Q -.->|"AMQP: итог заказа"| N
     end
     UI -->|"HTTP: локальный gateway"| GW
