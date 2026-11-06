@@ -4,262 +4,294 @@
 **Тема:** E-commerce платформа  
 **Студенты:** Смирнова Юлия Евгеньевна; Рыбаков Хуярик Валентинович(пися)  
 **Группа:** P3369  
-**Дата:** 05.11.2026
+**Дата:** 06.11.2026
 
-**Цель:** спроектировать компактную систему из четырёх микросервисов для последующей реализации и запуска на одной машине. Каждая вещь существует в одном экземпляре; главный инвариант — невозможность её продажи двум покупателям. Магазин принадлежит одному продавцу.
+**Цель:** спроектировать систему из шести микросервисов для последующей реализации на одной машине. Каждая вещь существует в одном экземпляре; главная гарантия — отсутствие двойной продажи. Резерв возникает только при оформлении. Стек: C# / ASP.NET Core, PostgreSQL, RabbitMQ, Redis, SignalR/WebSocket, S3-совместимое хранилище и OpenTelemetry/Grafana/Loki.
+
+**Отклонение от исходного ТЗ:** в присланном задании разрешены 3–5 микросервисов. По последним правкам выбран вариант с шестью, включая Image Service. Это требует согласования с преподавателем; соответствие ограничению по количеству не заявляется.
 
 ## 1. Functional Requirements
 
-### 1.1. Основные функции
+### 1.1. Семь основных функций
 
-| ID | Возможность | Критерий выполнения |
+| ID | Функция | Критерий выполнения |
 |---|---|---|
-| FR-1 | Каталог | Фильтры по категории, размеру и цене; сортировка по цене; пагинация до 20 записей |
-| FR-2 | Карточка вещи | Название, описание, бренд, состояние, размер, цена, изображение и наличие |
-| FR-3 | Корзина | Добавление, удаление и просмотр; до 10 разных вещей, без дубликатов; количество каждой — 1 |
-| FR-4 | Оформление | Получатель и адрес; атомарный резерв всей корзины; цена определяется сервером |
-| FR-5 | Тестовая оплата | Выбор SUCCESS / DECLINED; успешный исход закрепляет продажу, отказ освобождает резерв |
-| FR-6 | Просмотр заказа | Позиции, зафиксированные цены, сумма, статус PROCESSING / CONFIRMED / CANCELLED и причина отмены |
-| FR-7 | Уведомления | Список сообщений об итогах заказов внутри приложения; повтор события не создаёт дубликат |
+| FR-1 | Учётные записи и права | Регистрация, вход/выход; роли customer и admin; покупатель видит только свои данные |
+| FR-2 | Главная и каталог | Визуальная главная с пресетами «Куртки», «Рубашки», «Размер M», «До 3 000 ₽»; каталог с фильтрами, сортировкой и карточками; страницы до 20 товаров; готовые пресеты хранятся в Catalog и связаны с page_id |
+| FR-3 | Управление товарами | Admin создаёт и редактирует доступные вещи, цену и фотографию; изменение зарезервированной/проданной вещи запрещено |
+| FR-4 | Корзина | До 10 уникальных вещей, количество каждой 1; добавить/удалить/прочитать; CartItemAdded через RabbitMQ; добавление не резервирует товар; события Catalog обновляют доступность и уведомляют владельцев затронутых корзин |
+| FR-5 | Оформление и тестовая оплата | Получатель и адрес; атомарный резерв всех вещей; SUCCESS закрепляет продажу, DECLINED освобождает резерв |
+| FR-6 | Результат заказа | Позиции, снимки цен, сумма, PROCESSING / CONFIRMED / CANCELLED и причина; обновление по push-событию без периодических HTTP-запросов |
+| FR-7 | История и push-уведомления | Кому, что и когда отправляли; сообщения о добавлении, резерве и результате заказа; SignalR только WebSocket, дедупликация и восстановление после разрыва |
 
-Демонстрация: 20–30 seed-товаров и два демопокупателя `customer-a`, `customer-b`, выбираемых через `X-Customer-Id`. Это локальный режим без регистрации. Все суммы — целые копейки, валюта RUB. Корзина не резервирует вещи. Набор покупаемых позиций фиксируется при первом запросе оформления.
+Демонстрация: 20–30 товаров, два зарегистрированных покупателя и один начальный admin. Все суммы — целые копейки, валюта RUB. Каталог публичен; корзина, заказ и уведомления требуют входа. Admin дополнительно управляет каталогом, но не получает доступ к чужим покупкам. Тестовая оплата остаётся внутри Order.
 
 ### 1.2. Три пользовательских сценария
 
-**A. Успешная покупка:** каталог → карточка → корзина → получатель, адрес и SUCCESS → Order фиксирует PROCESSING → Catalog атомарно резервирует все вещи и цены → Order проверяет сумму → Catalog закрепляет SOLD → Order сохраняет CONFIRMED и событие → купленные позиции удаляются из корзины → появляется уведомление.
+**A. Покупка:** зарегистрироваться/войти → открыть главную и пресет → карточка → добавить в корзину → получить «Товар добавлен» → оформить с SUCCESS → Order создаёт PROCESSING → Catalog резервирует весь набор → событие OrderReserved → Catalog закрепляет SOLD → Order сохраняет CONFIRMED → WebSocket сообщает результат → купленные позиции удаляются из корзины.
 
-**B. Отказ оплаты:** корзина → оформление с DECLINED → резерв → Order применяет тестовый отказ → Catalog освобождает резерв → Order сохраняет CANCELLED / PAYMENT_DECLINED и событие → корзина остаётся → появляется уведомление. Новая попытка оформляется новым заказом.
+**B. Отказ и конфликт:** покупатель оформляет с DECLINED → после резерва Order освобождает вещи → CANCELLED / PAYMENT_DECLINED, корзина остаётся, приходит уведомление. Если ту же вещь раньше зарезервировал другой заказ, весь резерв отклоняется без частичных изменений; причина PRODUCT_UNAVAILABLE, оплата не применяется. Новая попытка — новый заказ.
 
-**C. Конкуренция:** A и B добавили одну вещь → A первым получил резерв → запрос B получает PRODUCT_UNAVAILABLE без частичного резерва остальных вещей → заказ B отменяется, его корзина сохраняется. Только A может завершить эту продажу; если A получит отказ, вещь снова доступна для нового оформления.
+**C. Работа admin:** войти начальной учётной записью → создать товар → загрузить JPEG/PNG/WebP → Image Service сохраняет файл в S3 и metadata в image_db; Catalog получает image_id и возвращает image_url в JSON → товар появляется в каталоге. При редактировании доступного товара меняются данные БД и инвалидируется кеш первой страницы. Customer получает 403 на административных маршрутах.
 
 ### 1.3. Out of scope
 
-Регистрация и настоящая авторизация, продавцы и комиссии, админка, загрузка изображений, реальные платежи и возвраты, доставка и её отслеживание, изменение подтверждённого заказа, отзывы, избранное, рекомендации, скидки, email/SMS и WebSocket. Нет отдельных Payment/Inventory Services, облачного кластера, Helm и автоскейлинга. Kubernetes через локальный Minikube входит в план реализации.
+Маркетплейс и комиссии, соцвход, MFA, сброс пароля, refresh-токены, смена ролей через интерфейс, удаление пользователей, полноценный профиль, удаление товаров, резерв в корзине, реальные платежи/возвраты/доставка, отзывы, избранное, рекомендации, скидки, email/SMS, автоматическая обработка фотографий. Payment остаётся внутри Order. Распределённый CDN, облачные аккаунты, Helm, автоскейлинг и высокодоступный кластер не входят в реализацию. Nginx даёт локальный кеш изображений, не распределённую CDN.
 
 ## 2. Non-Functional Requirements
 
 ### 2.1. Consistency
 
-| Область | Модель и механизм | Почему |
+| Данные | Модель и механизм | Обоснование |
 |---|---|---|
-| Остатки и резерв всей корзины | Strong consistency внутри Catalog DB: транзакция, блокировки строк, проверка AVAILABLE | Нельзя зарезервировать один экземпляр дважды или только часть заказа |
-| Заказ, фазы и outbox | Strong consistency внутри Order DB: локальные транзакции и уникальный ключ оформления | Статус и итоговое событие записываются вместе |
-| Order ↔ Catalog | Eventual consistency, сохраняемые фазы и идемпотентные команды | Общей транзакции между БД нет; после сбоя возможен PROCESSING при уже проданной вещи |
-| Корзина ↔ каталог | Актуальность на момент чтения; повторная проверка при резерве | Просмотр и добавление не гарантируют доступность при покупке |
-| Заказ ↔ уведомления | Eventual consistency через RabbitMQ | Сообщение может появиться позже результата покупки |
-| Кеш каталога ↔ PostgreSQL | Eventual consistency описаний/цен, TTL 60 с | Остатки и резерв в кеш не входят; покупка использует данные БД |
-
-Strong consistency всей распределённой системы не заявляется. Наличие контролирует только Catalog.
+| Пользователь/роль | Strong consistency в Auth DB, уникальный email | Регистрация не создаёт дубликаты; роли не задаются клиентом |
+| Резерв и изменение товара admin | Strong consistency в Catalog DB, транзакции и блокировки Availability | Нельзя продать экземпляр дважды или изменить его во время резерва |
+| Остаток и событие Catalog | Одна транзакция Availability + версия + Catalog outbox | Cart узнаёт об изменении только после фиксации реального состояния |
+| Корзина и её событие | Одна транзакция CartItem + Cart outbox | Добавление и основание уведомления не расходятся |
+| Заказ, фаза и его событие | Одна транзакция Order DB + outbox | Сохранённый шаг можно безопасно продолжить |
+| Order ↔ Catalog | Eventual consistency, сохраняемая сага | Общего commit между БД нет; временно возможен PROCESSING при SOLD |
+| Каталог ↔ кеш | Eventual consistency до TTL 60 с | Кеш только для показа; наличие и цена покупки — PostgreSQL |
+| Покупка ↔ уведомление | Eventual consistency, at-least-once и UQ event_id | Push может задержаться; дубли доставки не создают вторую запись |
 
 ### 2.2. Sync vs Async
 
 | Связь | Способ | Причина |
 |---|---|---|
-| Gateway → четыре сервиса | HTTP JSON | Клиент ожидает данные или результат |
-| Cart → Catalog | HTTP: пакетное чтение | Получение описаний, цен и наличия без копии каталога |
-| Order → Cart | HTTP: состав и очистка | Фиксация выбора и удаление только купленных строк |
-| Order → Catalog | HTTP: reserve/read/complete/release | Нужен определённый результат операции с уникальной вещью |
-| Order → RabbitMQ → Notification | AMQP, at-least-once | Уведомления обрабатываются фоном и допускают дубликаты доставки |
-| Catalog → Redis | Синхронный RESP | Кеширование данных товаров и результатов фильтрации |
+| Gateway → шесть сервисов | HTTP JSON | Запросы клиента и результат действий |
+| Cart → Catalog; Order → Cart/Catalog | HTTP | Нужны данные корзины и определённый результат резерва |
+| Catalog → RabbitMQ → Cart; Cart / Order → RabbitMQ → Notification | AMQP push | Уведомления не блокируют покупку |
+| Notification ↔ браузер через Gateway | SignalR, только WebSocket | Push и подтверждение курсора без polling и без SSE |
+| Catalog → Redis / Image; Image → S3 | RESP / HTTP / S3 API | Кеш страницы / проверка изображения / хранение файлов |
+| Шесть сервисов → OTel Collector | OTLP push | Связанные логи, метрики и трейсы |
 
 ### 2.3. Latency и масштабирование
 
-Цели p95 для прогретого локального запуска: до 30 товаров, до 10 позиций в корзине, до 10 одновременных запросов демопользователей. Это требования для будущих измерений.
+Целевые p95 для прогретого локального запуска: до 30 товаров, 10 вещей в корзине и 10 одновременных пользователей. Это цели будущей проверки, не выполненные измерения.
 
 | Операция | Цель | Причина |
 |---|---|---|
-| Каталог, карточка, чтение заказа/уведомлений | <100 мс | Частые чтения должны быстро отвечать |
-| Корзина | <300 мс | Включает один пакетный вызов Catalog |
-| Оформление без сбоев | <1 с | Несколько локальных вызовов и транзакций |
-| Сохранённое оформление при сбое | ≤3 с до ответа PROCESSING | После 2 с ожидания обработки возвращается 202 с order_id |
-| Уведомление | ≤5 с при исправных компонентах | Асинхронная работа может занимать >1 с |
-| Восстановление после возврата зависимостей | Ориентир ≤30 с при малой очереди | Во время самого сбоя срок не ограничен |
+| Каталог, карточка, чтение заказа/истории | <100 мс | Частые чтения |
+| Вход/регистрация | <1 с | Включают вычисление хеша пароля |
+| Корзина | <300 мс | Один пакетный вызов Catalog |
+| Оформление | <1 с без сбоев; ≤3 с до 202 при сохранённом PROCESSING | Пользователь получает order_id, затем push результата |
+| Уведомление | ≤5 с при исправных компонентах | Фоновая цепочка может занимать >1 с |
+| Восстановление заказа | Ориентир ≤30 с после возврата зависимостей при малой очереди | Во время сбоя срок не ограничен |
 
-Catalog имеет больше всего чтений: нужны пагинация и индексы фильтров. Cart зависит от Catalog, Order — от скорости записи и внешних команд, Notification — от скорости обработки очереди. Первая версия: по одной реплике. При росте добавляются реплики HTTP-сервисов и consumers, затем ресурсы БД; уникальные остатки защищаются блокировками общей Catalog DB. Пулы ограничены, например пятью соединениями на экземпляр. Redis сокращает повторные чтения описаний и запросов фильтрации; актуальные остатки по-прежнему читаются из БД.
+Больше всего чтений у Catalog: пагинация, индексы фильтров и Redis. Image нагружен выдачей файлов (Nginx снимает повторные чтения); Auth ограничивает нагрузку на хеширование; Order зависит от записей и внешних команд; Notification — от очереди, записи истории и WebSocket-подключений. Первая версия — по одной реплике. HTTP-сервисы можно размножать; блокировки уникальных вещей остаются в БД. Для нескольких Notification потребуется распределённая доставка подключённым клиентам; backplane не входит в первую версию. Пулы БД ограничены, например пятью соединениями на экземпляр плюс выделенное LISTEN-соединение там, где нужно.
 
-### 2.4. Развёртывание: Compose и Kubernetes
+### 2.4. Compose и Kubernetes
 
-Два варианта для одних Docker-образов: **Compose для разработки**, **Kubernetes через одноузловой Minikube для демонстрации**. Одновременно запускать оба не требуется. Плановый бюджет Minikube: 4 CPU, 8 ГБ RAM и не менее 20 ГБ свободного диска; фактические затраты проверяются при реализации. Kubernetes управляет Pod, а Order координирует бизнес-процесс покупки.
+Одни образы: Compose для разработки, одноузловой Minikube для демонстрации, одновременно не требуются. Плановый бюджет полной локальной схемы — 6 CPU, 12 ГБ RAM, 30 ГБ свободного диска; его проверим на реализации.
 
-| Объект в namespace `rewear` | План применения |
+| Объект namespace `rewear` | Назначение |
 |---|---|
-| 6 Deployment | Четыре бизнес-сервиса, Nginx и Redis, по одной реплике |
-| 5 StatefulSet | Четыре отдельных PostgreSQL и RabbitMQ, по одной реплике |
-| Service | ClusterIP для внутренних HTTP/SQL/AMQP/RESP; headless Service для каждого StatefulSet |
-| 5 PVC | По одному для каждой БД и RabbitMQ; данные сохраняются при обычном пересоздании Pod |
-| ConfigMap / Secret | Адреса и настройки / отдельные credentials каждой БД; реальные секреты не коммитятся |
-| Probes и ресурсы | Startup, readiness, liveness; CPU/RAM requests и limits для каждого компонента |
-| Доступ пользователя | Nginx через локальный port-forward; отдельный Ingress controller не требуется |
+| 8 Deployment | Шесть бизнес-сервисов, Nginx и Redis; по одной реплике |
+| 9 StatefulSet и 9 PVC | Шесть PostgreSQL, RabbitMQ, локальное S3-хранилище, демонстрационный observability-backend |
+| Service | ClusterIP для внутренних соединений; headless Service для StatefulSet |
+| ConfigMap / Secret | Настройки/публичный JWT-ключ; пароли БД, private key Auth, сервисные/S3 credentials |
+| Probes / ресурсы | Startup, readiness, liveness, CPU/RAM requests и limits |
+| Локальный доступ | Port-forward к Nginx и отдельно к Grafana; Nginx проксирует WebSocket Upgrade |
 
-Итого 11 прикладных Pod плюс системные компоненты Minikube. Redis — восстанавливаемый кеш без PVC и persistence; плановый maxmemory 64 МБ, limit контейнера 128 MiB, eviction allkeys-lru. Миграции выполняются при старте единственной реплики сервиса до готовности; seed Catalog — повторяемый без дубликатов. Liveness проверяет сам процесс, readiness бизнес-сервиса — готовность и свою БД, Nginx — HTTP-доступность; отказ RabbitMQ не делает HTTP Order недоступным. Readiness Catalog не зависит от Redis: при его отказе сервис читает PostgreSQL. Consumers переподключаются отдельно. Логи содержат request_id, order_id и event_id.
+Итого 17 прикладных Pod плюс системные компоненты Minikube. Redis — без persistence/PVC, maxmemory 64 МБ и limit 128 MiB, allkeys-lru. Readiness бизнес-сервиса учитывает свою БД, liveness — процесс; отказ Redis/broker не вызывает каскадный рестарт. Миграции — до готовности единственной реплики. PVC переживает обычное пересоздание Pod, но не гарантирует сохранность при потере диска/кластера. Высокой доступности одной машины нет.
 
-Минимальное развёртывание не предусматривает внешний доступ к БД; каждая служба использует только свои credentials. Minikube и PVC не заменяют резервное копирование: потеря узла/диска или удаление кластера может уничтожить данные. Одноузловая конфигурация не является высокодоступной.
+### 2.5. Авторизация и роли
 
-Выбор объектов основан на официальных описаниях [Deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/), [StatefulSet](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/), [probes](https://kubernetes.io/docs/concepts/workloads/pods/probes/) и [Minikube](https://minikube.sigs.k8s.io/docs/start/).
+Auth хранит пользователей и хеши паролей, использует стандартный PasswordHasher, а не собственную криптографию. Регистрация всегда создаёт customer; поле role от клиента не принимается. Начальный admin создаётся bootstrap-командой с паролем из Secret. Уникальность нормализованного email — в БД; после пяти неверных входов учётная запись блокируется на 15 минут, ответ не раскрывает наличие email.
 
-### 2.5. Кеширование каталога
+JWT для закрытого учебного приложения: RS256, sub=user UUID, role, iss, aud, exp; срок 15 минут. Private key есть только у Auth, API проверяют подпись публичным ключом, issuer, audience, срок и sub локально. Пример реализации — [JWT bearer в ASP.NET Core](https://learn.microsoft.com/en-us/aspnet/core/security/authentication/configure-jwt-bearer-authentication). Клиент хранит токен только в памяти; выход удаляет его и закрывает WS, ранее выданный токен остаётся действителен до exp. Мгновенного отзыва/refresh нет.
 
-Catalog использует **Redis по схеме cache-aside**: hit → получить данные из кеша; miss → прочитать PostgreSQL и сохранить копию на 60 с. Ключ `rewear:catalog:product:{id}` хранит описание/цену из Product и ProductDetails; `rewear:catalog:list:{hash}` — ID страницы и total, hash учитывает нормализованные фильтры, сортировку и пагинацию. Наличие подмешивается отдельным чтением Availability из PostgreSQL, для списка — одним пакетным запросом. Полный HTTP-ответ со статусом наличия в Redis не сохраняется.
+Customer и admin работают только со своей корзиной/покупками; Catalog дополнительно требует admin для записи. Пользователь определяется из проверенного sub, клиентский X-Customer-Id не используется. Без токена — 401, без роли — 403, чужой заказ — 404. Внутренние API не доступны через Gateway и проверяют X-Service-Key: отдельные ключи Cart/Order/Catalog с разрешёнными маршрутами. Поэтому восстановление заказа не зависит от истёкшего пользовательского JWT. Ключи — в Secret, не в Git.
 
-Reserve/read/complete/release всегда работают с PostgreSQL, включая актуальные цены. Поэтому reserve и sale не требуют инвалидировать кеш описаний. В MVP изменения описаний/цен происходят только при seed: после успешной записи удаляются ключи каталога, до готовности сервиса. При неудачной очистке устаревшая копия допустима до TTL; сумма покупки всё равно проверяется по БД. Никаких резервов, заказов или платежей в Redis нет.
+### 2.6. Кеш первой страницы и изображения
 
-Кеш принадлежит Catalog; другие сервисы обращаются к его API. При отказе Redis — fallback на PostgreSQL, при потере кеша — заполнение по запросам. Выигрыш проверяется hit/miss и сравнением задержек с кешем и без него; уменьшение задержек заранее не заявляется как измеренный результат. Основа: [cache-aside](https://redis.io/docs/latest/develop/use-cases/cache-aside/) и [eviction](https://redis.io/docs/latest/develop/reference/eviction/).
+Redis cache-aside хранит **только общую первую страницу без фильтров**, page_size=20 и сортировка price_asc с id для равных цен. Ключ `rewear:catalog:first-page:v1`, TTL 60 с; копируются описания/цены для показа, порядок и total. Наличие подмешивается одним чтением Availability из PostgreSQL. Другие страницы, карточки и пресеты читаются из БД. После admin create/update/image выполняется DEL после commit; при сбое/гонке допустима старая копия до TTL. Reserve/complete/release и цена покупки всегда используют БД. При отказе Redis — fallback, бюджет кеша 30 мс без повторов.
 
-## 3. Архитектурная диаграмма
+**Пресеты:** Catalog хранит CatalogPage(id, slug, title) и SearchPreset(id, page_id, title, filters, sort, position). Главная получает наборы по page_id/slug, каталог выполняет сохранённые фильтры по preset_id. Это не статический список во frontend и не отдельный сервис. Начальные страницы/пресеты — seed; редактор пресетов вне MVP. При preset_id используются его фильтры/сортировка и заданная пагинация, конфликтующие ручные фильтры дают 422. page_id задаёт контекст страницы и проверяет принадлежность preset_id; без пресета/ручных фильтров показывается общий каталог. Кешируется только общая первая страница, не все первые страницы пресетов.
+
+**Изображения:** отдельный Image Service владеет image_db и S3-объектами. Admin загружает один JPEG/PNG/WebP до 5 МБ; сервис проверяет формат и сохраняет файл с неизменяемым ключом в локальном S3-совместимом [SeaweedFS](https://github.com/seaweedfs/seaweedfs), metadata — в своей БД. При ошибке записи metadata новый объект удаляется по возможности, незавершённое изображение не выдаётся как READY. Catalog хранит только image_id и проверяет READY через API Image. Привязка к RESERVED/SOLD запрещена; неиспользованные загрузки не меняют товар.
+
+В JSON товара возвращается image_url=`/media/images/{image_id}`. Путь байтов: **браузер → Nginx (кеш) → Image Service GET /images/{id} → S3**. В ответе Content-Type, ETag и Cache-Control; новая фотография получает новый ID/URL. При miss Nginx обращается к Image, при hit отдаёт файл из кеша. S3 credentials есть только у Image, прямого доступа браузера к S3 нет. Это локальная альтернатива варианту «браузер → CloudFront → S3»; настоящий CloudFront/распределённый CDN не разворачивается. Пароли и изображения не передаются через WebSocket.
+
+### 2.7. Observability
+
+Сервисы отправляют OTLP в локальный OpenTelemetry Collector; **Loki хранит логи, Grafana показывает данные**, Tempo — трейсы, Mimir — метрики. Для небольшой демонстрации используем единую сборку [grafana/otel-lgtm](https://grafana.com/docs/opentelemetry/docker-lgtm/), а не пять отдельно настраиваемых кластеров.
+
+Отслеживаем HTTP p95/ошибки, входы без раскрытия credentials, reserve conflicts, исходы заказов, cache hit/miss, задержку outbox/уведомлений и число WS-подключений. traceparent передаётся через HTTP и RabbitMQ headers; логи содержат trace_id, order_id, event_id. В Grafana по заказу можно связать Cart/Order/Catalog и обработку его события. Базовый профиль собирает телеметрию приложения; полный набор exporters для всех инфраструктурных систем не обещается. Пароли, JWT, query access_token и адреса доставки не логируются. Недоступность telemetry-backend не блокирует покупки.
+
+## 3. Архитектурная диаграмма и сервисы
 
 ![Архитектура ReWear](diagrams/architecture.png)
 
-[SVG](diagrams/architecture.svg) · [Mermaid](diagrams/architecture.mmd). Сплошные стрелки — HTTP/SQL, пунктирные — события AMQP. Рамка показывает локальное окружение запуска. Gateway, Redis и Kubernetes — инфраструктура; бизнес-микросервисов ровно четыре.
+[SVG](diagrams/architecture.svg) · [Mermaid](diagrams/architecture.mmd). Сплошные линии — запросы HTTP/SQL/RESP/S3/WS, пунктир — AMQP; серая связь OTLP — телеметрия. Инфраструктура не увеличивает число бизнес-сервисов.
 
-### 3.1. Catalog Service
-
-- **Функции:** каталог и карточка (FR-1/2), пакетное чтение, атомарный reserve, read, complete и release для FR-4/5. В сценариях A/B закрепляет/освобождает вещи, в C разрешает конкуренцию.
-- **Требования:** strong consistency остатков; HTTP от Gateway/Cart/Order; чтения <100 мс, резерв ориентировочно <200 мс без сбоев. Узкое место — блокировки популярных вещей; масштабируется числом HTTP-реплик.
-- **Данные/API:** источник данных — catalog_db; Product, ProductDetails, Availability, Reservation, ReservationItem (§4). Redis хранит только производные копии для чтения. Собственных событий нет.
-- **Решения и сбои:** товар и остаток объединены ради локальной транзакции; повтор команды безопасен. Неудача одного товара откатывает резерв набора. У резерва нет TTL — зависший процесс восстанавливает Order; TTL кеша — 60 с.
-- **Границы:** без админки, поставок, складских партий и рекомендаций; начальные товары — seed.
-
-### 3.2. Cart Service
-
-- **Функции:** добавить/удалить/прочитать (FR-3), отдать ID для заказа и удалить купленные строки. В A очищается после успеха, в B/C сохраняется.
-- **Требования:** транзакционные изменения своей корзины; наличие может устареть. HTTP от Gateway/Order и к Catalog; цель <300 мс. Узкое место — Catalog; разные корзины обрабатываются независимо.
-- **Данные/API:** только cart_db; Cart и CartItem (§4). Уникальность пары cart_id/product_id запрещает дубликаты; количество всегда 1.
-- **Решения и сбои:** PostgreSQL сокращает число технологий. Повтор добавления возвращает существующую строку. Без Catalog чтение цен и новое добавление дают временную ошибку; удаление и внутреннее чтение ID работают при доступной Cart DB.
-- **Границы:** без резерва, гарантии цены, скидок и истории покупок. SOLD/RESERVED видны как недоступные; неизвестный товар — NOT_FOUND с null-ценой. При неполных ценах total_minor = null.
-
-### 3.3. Order Service
-
-- **Функции:** оформление, тестовая оплата, чтение результата (FR-4/5/6), итоговое событие для FR-7. Управляет всеми тремя сценариями.
-- **Требования:** локальная атомарность заказа/outbox; между БД — сага. HTTP к Cart/Catalog, AMQP к RabbitMQ. Оформление <1 с; при задержке сохранённого процесса — 202. Узкие места — записи, внешние вызовы и outbox.
-- **Данные/API:** только order_db; Order, OrderItem, Checkout, PaymentAttempt, OutboxEvent (§4). Состав, тестовый исход и ключ первого запроса фиксируются до внешних команд.
-- **Решения и сбои:** бизнес-оркестратор находится внутри Order; восстановитель повторяет сохранённую фазу. Тайм-аут не считается отказом оплаты. При масштабировании один обработчик захватывает заказ, publisher использует SKIP LOCKED.
-- **Границы:** без настоящего банка, повторных оплат одного заказа, возвратов, доставки и изменения терминального статуса. Нет отдельного Payment Service.
-
-### 3.4. Notification Service
-
-- **Функции:** FR-7 — получить итоговое событие, сформировать текст и показать покупателю. Обрабатывает подтверждения и отмены сценариев A/B/C.
-- **Требования:** eventual consistency с заказом, одна запись на event_id. AMQP на входе, HTTP-чтение через Gateway; доставка ≤5 с, чтение <100 мс. Масштабируется consumers общей очереди.
-- **Данные/API:** только notification_db; Notification (§4). UQ event_id одновременно выполняет роль защиты от повторной обработки, отдельный inbox не нужен.
-- **Решения и сбои:** ACK только после commit. Дубль даёт ACK без новой записи; временный сбой БД — ожидание и повтор; повреждённое событие — dead-letter queue. Уже сохранённый список читается даже без broker.
-- **Границы:** без email/SMS/push, статуса прочтения и запросов к Order для проверки события.
+| Сервис / bounded context | Функции и сценарии | Данные, взаимодействия и требования | Решения / границы |
+|---|---|---|---|
+| Catalog — товар, пресеты и остаток | FR-2/3/5: каталог, страницы/пресеты, admin и резерв | catalog_db + outbox, Redis, HTTP к Image; публикует ProductAvailabilityChanged | Admin меняет только AVAILABLE; файлами владеет Image |
+| Cart — изменяемый выбор | FR-4: максимум 10; CartItemAdded в A; B сохраняет выбор | cart_db + свой outbox; HTTP к Catalog, AMQP consumer изменений наличия и publisher персональных событий | Добавление не резервирует; повторы не создают вторую строку/событие |
+| Order — оформление и сага | FR-5/6: оркестрирует A/B, публикует резерв и итог | order_db + outbox; HTTP к Cart/Catalog, AMQP; локальная атомарность, между БД eventual | Тестовая оплата внутри, без отдельного Payment; терминальные статусы неизменяемы |
+| Notification — история и доставка | FR-7: кому/что/когда; все пользовательские события | notification_db; RabbitMQ push, SignalR/WS; UQ event_id; нет исходящего HTTP к Auth | ACK после commit, персональная доставка по sub; без polling, email и отметки «прочитано» |
+| Image — хранение и выдача изображений | FR-2/3: загрузка admin и GET по ID | image_db, S3; HTTP к Gateway/Catalog, OTLP | JSON содержит URL, байты идут через Nginx/Image; без обработки фото |
+| Auth — личность и права | FR-1: регистрация/вход A, admin в C | auth_db, хеши, роли и JWT; HTTP; уникальный email и транзакционные изменения | Только customer/admin, без соцсетей, смены ролей и сброса пароля |
 
 ## 4. Data Model и API
 
-### 4.1. Модель данных и ownership
+### 4.1. Модель данных
 
-UUID — идентификаторы, UTC — время, bigint — копейки; RUB — константа. Основные поля каждой сущности: от 3 до 7. FK существуют только внутри одной БД.
+UUID — идентификаторы, UTC — время, bigint — копейки; RUB — константа. Ниже по 3–7 основных полей на сущность. Чужие идентификаторы — логические ссылки без FK между базами.
 
-| Владелец / сущность | Основные поля | Связи и ограничения |
+| Владелец / entity | Основные поля | Связи и ограничения |
 |---|---|---|
-| Catalog / Product | id, title, category, size, price_minor, description | PK id; price_minor > 0 |
-| Catalog / ProductDetails | product_id, brand, condition, image_url | PK/FK product_id → Product, 1:1 |
-| Catalog / Availability | product_id, status, reservation_order_id, updated_at | PK/FK product_id → Product, 1:1 |
-| Catalog / Reservation | order_id, state, created_at, updated_at | PK order_id; без FK в Order DB |
-| Catalog / ReservationItem | order_id, product_id, title_snapshot, price_minor | PK(order_id,product_id); FK в Reservation и Product, резерв 1:N позиций |
-| Cart / Cart | id, customer_id, updated_at | PK id; UQ customer_id |
+| Auth / User | id, email_normalized, password_hash, role, failed_login_count, locked_until, created_at | PK id; UQ email; role customer/admin |
+| Catalog / Product | id, title, category, size, price_minor, description | PK id; цена > 0 |
+| Catalog / ProductDetails | product_id, brand, condition, image_id | PK/FK product_id → Product, 1:1; image_id без FK в image_db |
+| Catalog / CatalogPage | id, slug, title | PK id; UQ slug |
+| Catalog / SearchPreset | id, page_id, title, filters, sort, position | PK id; FK page_id → CatalogPage, 1:N; filters JSON |
+| Catalog / Availability | product_id, status, reservation_order_id, version, updated_at | PK/FK product_id → Product, 1:1 |
+| Catalog / Reservation | order_id, state, created_at, updated_at | PK order_id; ACTIVE/COMPLETED/RELEASED |
+| Catalog / ReservationItem | order_id, product_id, title_snapshot, price_minor | PK пары; FK в Reservation и Product; резерв 1:N позиций |
+| Catalog / OutboxEvent | event_id, aggregate_id, event_type, payload, created_at, published_at, attempts | PK event_id; событие изменения остатка записывается вместе с ним |
+| Image / Image | id, object_key, content_type, size_bytes, etag, status, created_at | PK id; UQ object_key; READY после S3 и metadata |
+| Cart / ProductAvailability | product_id, status, version, updated_at | PK product_id; проекция последней версии событий Catalog, не источник остатка |
+| Cart / Cart | id, user_id, updated_at | PK id; UQ user_id |
 | Cart / CartItem | id, cart_id, product_id, added_at | PK id; FK cart_id → Cart, 1:N; UQ(cart_id,product_id) |
-| Order / Order | id, customer_id, status, total_minor, reason, idempotency_key, created_at | PK id; UQ(customer_id,idempotency_key) |
+| Cart / OutboxEvent | event_id, aggregate_id, event_type, payload, created_at, published_at, attempts | PK event_id; aggregate_id=CartItem.id без FK; для производного события event_id детерминирован из source_event_id + cart_item_id |
+| Order / Order | id, user_id, status, total_minor, reason, idempotency_key, created_at | PK id; UQ(user_id,idempotency_key) |
 | Order / OrderItem | id, order_id, product_id, title_snapshot, price_minor | PK id; FK order_id → Order, 1:N; UQ(order_id,product_id) |
-| Order / Checkout | order_id, selection, recipient, address, expected_total_minor, phase, request_hash | PK/FK order_id → Order, 1:1; selection — product_id/cart_item_id в JSON |
-| Order / PaymentAttempt | order_id, result, created_at | PK/FK order_id → Order, 1:1; SUCCESS / DECLINED |
-| Order / OutboxEvent | event_id, order_id, event_type, payload, created_at, published_at, attempts | PK event_id; FK order_id → Order, 1:N; UQ(order_id,event_type) |
-| Notification / Notification | id, event_id, customer_id, order_id, type, message, created_at | PK id; UQ event_id; без FK в Order DB |
+| Order / Checkout | order_id, selection, recipient, address, expected_total_minor, phase, request_hash | PK/FK order_id → Order, 1:1; selection содержит product_id/cart_item_id |
+| Order / PaymentAttempt | order_id, result, created_at | PK/FK order_id → Order, 1:1; выбранный SUCCESS/DECLINED |
+| Order / OutboxEvent | event_id, aggregate_id, event_type, payload, created_at, published_at, attempts | PK event_id; FK aggregate_id → Order; UQ(aggregate_id,event_type) |
+| Notification / Notification | id, user_id, event_id, sequence, type, payload, created_at | PK id; UQ event_id; UQ(user_id,sequence); payload — что сообщили и связанные ID |
+| Notification / UserStream | user_id, last_sequence, updated_at | PK user_id; сериализует выдачу курсора одному получателю |
+| Notification / DeliveryAttempt | id, notification_id, connection_id, status, attempted_at, sent_at | PK id; FK notification_id → Notification, 1:N; SENT/FAILED; sent_at после записи в соединение |
 
-Catalog владеет ценами и остатками; Cart — составом корзины; Order — заказами и историческими снимками цен; Notification — текстами сообщений. Чужие БД напрямую не читаются. Снимок заказа не меняется вместе с каталогом. До получения резерва total_minor может быть null, items — пустым списком.
+Auth владеет личностью/ролью, Catalog — товарами/ценами/остатками/пресетами, Image — metadata и S3-файлами, Cart — выбором и производной проекцией наличия, Order — историей покупки, Notification — сообщениями и попытками доставки. OrderItem хранит снимок, который не меняется вместе с Product. До резерва total_minor может быть null, items — пустым. S3 — файловое хранилище Image; observability — инфраструктура, не общая бизнес-БД.
 
 ### 4.2. Семь межсервисных HTTP endpoints
 
-Все тела — JSON. `p1`, `ci1`, `o1` ниже сокращают UUID. Внутренние маршруты не публикуются через Gateway.
+Все тела — JSON; `p1`, `u1`, `ci1`, `o1` сокращают UUID. Внутренние маршруты закрыты от Gateway и требуют сервисный ключ с разрешениями caller.
 
-| № | Caller → владелец: метод и путь | Request body | Успешный response body | Ошибки / повтор |
+| № | Caller → владелец: method + path | Request body | Response body | Ошибки / повтор |
 |---|---|---|---|---|
 | 1 | Cart → Catalog: GET /internal/products?ids=p1,p2 | Нет | {items:[{id,title,price_minor,status}],missing_ids:[...]} | 200; до 10 ID |
-| 2 | Order → Cart: GET /internal/carts/{customer_id} | Нет | {cart_id,items:[{cart_item_id,product_id}]} | 200; пустая корзина — items:[] |
-| 3 | Order → Catalog: POST /internal/reservations | {order_id,product_ids:[...]} | {order_id,state,items:[{product_id,title,price_minor}],total_minor,currency} | 201/200; 409 при недоступности/несовпадающем повторе; 422 для неверного набора |
-| 4 | Order → Catalog: GET /internal/reservations/{order_id} | Нет | Та же структура, что №3 | 200; 404 при отсутствии |
-| 5 | Order → Catalog: POST /internal/reservations/{order_id}/complete | {} | {order_id,state:"COMPLETED"} | 200 и при повторе; 404 без резерва; 409 для RELEASED |
-| 6 | Order → Catalog: DELETE /internal/reservations/{order_id} | Нет | {order_id,state:"RELEASED"} | 200 и при повторе/отсутствии; 409 для COMPLETED |
-| 7 | Order → Cart: POST /internal/carts/{customer_id}/remove-items | {cart_item_ids:[...]} | {removed_ids:[...]} | 200; отсутствующие строки игнорируются |
+| 2 | Order → Cart: GET /internal/carts/{user_id} | Нет | {cart_id,items:[{cart_item_id,product_id}]} | 200; пустая корзина — items:[] |
+| 3 | Order → Catalog: POST /internal/reservations | {order_id,product_ids:[...]} | {order_id,state,items:[{product_id,title,price_minor}],total_minor,currency} | 201/200; 409 при конфликте; 422 для неверного набора |
+| 4 | Catalog → Image: GET /internal/images/{image_id} | Нет | {id,status,content_type,size_bytes,url} | 200 READY; 404 неизвестный; неготовый image не привязывается |
+| 5 | Order → Catalog: POST /internal/reservations/{order_id}/complete | {} | {order_id,state:"COMPLETED"} | 200 при повторе; 404 без резерва; 409 для RELEASED |
+| 6 | Order → Catalog: DELETE /internal/reservations/{order_id} | Нет | {order_id,state:"RELEASED"} | 200 при повторе/отсутствии; 409 для COMPLETED |
+| 7 | Order → Cart: POST /internal/carts/{user_id}/remove-items | {cart_item_ids:[...]} | {removed_ids:[...]} | 200; отсутствующие строки игнорируются |
 
-Reserve атомарно блокирует все Availability по product_id в стабильном порядке и сериализует команды одного order_id. AVAILABLE → RESERVED → SOLD при complete; RESERVED → AVAILABLE при release. Владелец резерва хранится в reservation_order_id. Повтор reserve с тем же order_id и набором возвращает сохранённый снимок, с другим набором — конфликт. RELEASED и COMPLETED терминальны. Release неизвестного order_id сохраняет RELEASED-маркер, запрещающий запоздавший reserve; 404 после тайм-аута сам по себе не доказывает, что команда не выполнялась. Снимок для маркера без позиций пустой, сумма null.
+Reserve блокирует Availability всех вещей в порядке product_id и сериализует команды одного order_id. Все позиции меняются вместе: AVAILABLE → RESERVED → SOLD или RESERVED → AVAILABLE. Admin create/update не обходят эти правила. Повтор reserve с тем же набором возвращает снимок; другой набор — 409. Release неизвестного order_id сохраняет RELEASED-маркер против запоздавшего reserve. COMPLETED и RELEASED терминальны; 404 после тайм-аута не доказывает, что запрос не выполнялся.
 
-Remove-items удаляет только указанные строки своей корзины, не новые записи того же product_id. Проверка лимита корзины и добавление выполняются одной транзакцией с блокировкой Cart.
+Cart проверяет лимит и добавляет позицию под блокировкой Cart, записывает CartItemAdded в той же транзакции. Повтор существующей позиции возвращает её без нового события. Очистка по cart_item_id не удаляет новые строки того же product_id. SOLD/RESERVED показываются как недоступные; неизвестные товары — NOT_FOUND/null-цена; неполная сумма — null.
 
-### 4.3. Клиентский API
+Catalog reserve/complete/release увеличивают version каждой затронутой Availability и записывают ProductAvailabilityChanged в свой outbox в той же транзакции. Повтор без изменения состояния не создаёт новую версию/событие. Для восстановления Order повторяет идемпотентную команду reserve/complete/release с тем же order_id; отдельное чтение резерва не требуется.
 
-Для корзины, заказов и уведомлений обязателен демозаголовок `X-Customer-Id`. Запросы изолируются по нему; это не проверка личности.
+### 4.3. Клиентский HTTP API
 
-| Метод и путь | Вход | Ответ |
+JWT обязателен кроме публичных чтений каталога/страниц/изображений и register/login; защищённые сервисы получают user_id только из sub.
+
+| Method + path | Request / права | Response |
 |---|---|---|
-| GET /api/products | category, size, min_price_minor, max_price_minor, sort, page, page_size | 200: {items:[{id,title,price_minor,size,status,image_url}],page,total} |
-| GET /api/products/{id} | product_id | 200: {id,title,description,category,size,brand,condition,price_minor,currency,status,image_url}; 404 |
-| GET /api/cart | Без body | 200: {items:[{cart_item_id,product_id,title,price_minor,status}],total_minor} |
-| POST /api/cart/items | {product_id} | 201/200: {cart_item_id,product_id}; 404/409 для неизвестной/недоступной вещи; 422 при превышении лимита |
-| DELETE /api/cart/items/{id} | Собственный cart_item_id | 204, в том числе при повторе; чужие строки не удаляются |
-| POST /api/orders | Idempotency-Key; {recipient,address,expected_total_minor,payment_result} | 201/202: {order_id,status,total_minor,reason}; 422 до создания при неверных данных/пустой корзине |
-| GET /api/orders/{id} | Собственный order_id | 200: {order_id,status,reason,items:[{product_id,title,price_minor}],total_minor,currency}; 404 для отсутствующего/чужого |
-| GET /api/notifications | page, page_size | 200: {items:[{id,order_id,type,message,created_at}],page,total} |
+| POST /api/auth/register | {email,password}, публичный | 201: {user_id,role:"customer"}; 409 duplicate email; 422 invalid |
+| POST /api/auth/login | {email,password}, публичный | 200: {access_token,expires_in:900,user:{id,role}}; 401 неверные credentials/блокировка |
+| GET /api/auth/me | JWT | 200: {id,email,role} |
+| GET /api/products | page_id/preset_id либо category,size,min_price_minor,max_price_minor,sort; page,page_size | 200: {items:[{id,title,price_minor,size,status,image_url}],page,total} |
+| GET /api/products/{id} | Публичный | 200: {id,title,description,category,size,brand,condition,price_minor,currency,status,image_url}; 404 |
+| GET /api/catalog/pages/{slug} | Публичный | 200: {page_id,title,presets:[{id,title,filters,sort,position}]}; 404 |
+| POST /api/admin/products | Admin; {title,description,category,size,brand,condition,price_minor} | 201: {product_id,status:"AVAILABLE"} |
+| PATCH /api/admin/products/{id} | Admin; изменяемые поля из POST и image_id | 200: {product_id}; 409 если RESERVED/SOLD |
+| POST /api/images | Admin; multipart file → Image | 201: {image_id,url}; 413 >5 МБ, 415 формат |
+| GET /media/images/{id} | Публичный; Gateway → Image GET /images/{id} | Байты изображения с Content-Type/ETag/Cache-Control, не JSON; 404 |
+| GET /api/cart | JWT, без body | 200: {items:[{cart_item_id,product_id,title,price_minor,status}],total_minor} |
+| POST /api/cart/items | JWT; {product_id} | 201/200: {cart_item_id,product_id}; 404/409 для неизвестного/недоступного, 422 при лимите |
+| DELETE /api/cart/items/{id} | Собственная позиция | 204 и при повторе; чужие данные не меняются |
+| POST /api/orders | JWT, Idempotency-Key; {recipient,address,expected_total_minor,payment_result} | 201/202: {order_id,status,total_minor,reason}; 422 до создания при неверных данных/пустой корзине |
+| GET /api/orders/{id} | Собственный order_id | 200: {order_id,status,reason,items:[{product_id,title,price_minor}],total_minor,currency}; 404 чужой/отсутствующий |
+| GET /api/notifications | JWT, page,page_size | 200: {items:[{id,sequence,type,payload,created_at,last_sent_at}],page,total}; last_sent_at выводится из DeliveryAttempt |
 
-Повтор оформления с тем же Idempotency-Key и телом возвращает тот же заказ: 200 для терминального, 202 для PROCESSING; другое тело — 409. Корзина при повторе не перечитывается. При 202 клиент опрашивает заказ раз в 2 с. Бизнес-отмена созданного заказа — 201 с CANCELLED и reason, не HTTP-сбой. Несовпадение серверной суммы и expected_total_minor ведёт к PRICE_CHANGED и освобождению резерва.
+Повтор оформления с тем же ключом и телом возвращает тот же заказ: 200 для терминального, 202 для PROCESSING; другое тело — 409. Корзина при повторе не перечитывается. После 202 браузер ждёт push; по событию один раз перечитывает заказ. При подключении/возврате на экран — разовая загрузка состояния. **Таймерных HTTP-запросов статуса нет.** Бизнес-отмена созданного заказа — 201 с CANCELLED; несовпадение суммы с expected_total_minor → PRICE_CHANGED и release. Общий формат ошибки: {error:{code,message,request_id}}; временные ошибки — 503/504.
 
-Общий формат ошибки: `{"error":{"code":"PRODUCT_UNAVAILABLE","message":"Вещь недоступна","request_id":"..."}}`. Временная ошибка зависимости — 503/504; неизвестный результат не заменяется пустыми данными или успешной покупкой.
+### 4.4. События и outbox без polling
 
-### 4.4. Асинхронные события
+Durable topic exchange `shop.events`; **две отдельные очереди**: `cart.availability` (binding `catalog.availability_changed`) и `notifications.events` (bindings `cart.item_added`, `cart.item_availability_changed`, `order.reserved`, `order.confirmed`, `order.cancelled`). Это не конкурирующие consumers одной очереди: Cart должен получить собственную копию изменения наличия. Consumer использует push basicConsume, не basicGet. Persistent messages, publisher confirms и mandatory-return; at-least-once, не exactly-once.
 
-Order публикует в durable exchange `orders.events`; routing keys `order.confirmed` / `order.cancelled` связаны с durable queue `notifications.orders`. Сообщения persistent; publisher использует confirms и проверку маршрутизации. Payload:
+Общая оболочка (сокращённые UUID):
 
 ```json
-{"event_id":"e1","event_type":"OrderConfirmed","schema_version":1,"occurred_at":"2026-11-05T12:00:00Z","order_id":"o1","customer_id":"customer-a","total_minor":450000,"currency":"RUB"}
+{"event_id":"e1","event_type":"CartItemAdded","schema_version":1,"occurred_at":"2026-11-06T12:00:00Z","user_id":"u1","aggregate_id":"ci1","payload":{"product_id":"p1"}}
 ```
 
-```json
-{"event_id":"e2","event_type":"OrderCancelled","schema_version":1,"occurred_at":"2026-11-05T12:05:00Z","order_id":"o2","customer_id":"customer-b","reason":"PAYMENT_DECLINED"}
-```
+| Publisher | Event / routing key | Payload | Когда создаётся |
+|---|---|---|---|
+| Catalog | ProductAvailabilityChanged / catalog.availability_changed | {product_id,status,version} | Атомарно с реальным изменением AVAILABLE/RESERVED/SOLD; получатель Cart |
+| Cart | CartItemAvailabilityChanged / cart.item_availability_changed | {product_id,status,version,source_event_id} | Для владельцев затронутых корзин после обработки нового изменения; без чужих user_id/order_id |
+| Cart | CartItemAdded / cart.item_added | {product_id} | Только при создании новой CartItem; текст «Товар добавлен», не «забронирован» |
+| Order | OrderReserved / order.reserved | {order_id,product_ids,total_minor} | После подтверждённого резерва Catalog и записи снимков/фазы |
+| Order | OrderConfirmed / order.confirmed | {order_id,total_minor,currency} | В транзакции CONFIRMED |
+| Order | OrderCancelled / order.cancelled | {order_id,reason} | После безопасного release; отказ/недоступность/смена цены |
 
-ID событий также UUID в реализации. У заказа одно итоговое событие; адрес/получатель в него не входят. Order записывает статус и outbox вместе; после подтверждённой публикации помечает published_at. Сбой между этими действиями допускает дубль. Notification делает INSERT с UQ event_id и ACK после commit; дубль завершается ACK без новой строки. Невалидные события направляются в `notifications.dead`, временный сбой БД вызывает ожидание переподключения без горячего requeue.
+**Cart как consumer:** при новом version обновляет ProductAvailability и в той же транзакции создаёт персональные outbox-события для пользователей, у которых вещь сейчас в корзине; затем ACK. Дубли и старые версии игнорируются. AVAILABLE → RESERVED/SOLD означает «товар больше недоступен для нового заказа»; RESERVED → SOLD повторяет только обновление статуса без второго сообщения о потере доступности; возврат AVAILABLE сообщает «снова доступен». Персональный event_id выводится из source_event_id и cart_item_id, поэтому повтор не создаёт дубль.
 
-## 5. Trade-offs и обработка сбоев
+При открытии корзины Cart один раз получает актуальное наличие у Catalog и показывает RESERVED/SOLD сразу, даже при задержке очереди. Пока экран открыт, изменения приходят через RabbitMQ → Cart → RabbitMQ → Notification → WebSocket. Проекция Cart не участвует в решении о резервировании. События не гарантируют доступность навсегда: окончательная проверка остаётся в Catalog. Разные события могут прийти с задержкой; по push клиент перечитывает актуальные данные один раз, не откатывая терминальный статус заказа.
 
-### 5.1. Почему такая декомпозиция
+Catalog, Cart и Order имеют свои outbox. Изменение и событие записываются вместе; триггер вызывает pg_notify с ID, а не персональными данными. Издатель в том же сервисе ждёт сигнал по выделенному LISTEN-соединению, затем читает pending и отправляет в RabbitMQ. **Нет периодического сканирования outbox для уведомлений.** После подтверждения broker сохраняется published_at; возможный дубль имеет тот же event_id.
 
-Catalog объединяет вещи и остатки ради атомарного резерва. Cart хранит изменяемый выбор, Order — факт и процесс покупки, Notification — независимую фоновую обработку. Симулятор оплаты входит в Order: отдельный сервис увеличил бы сложность без внешнего платёжного процесса. Альтернативы: три сервиса с объединёнными Cart/Order либо пять с Payment; четыре сохраняют понятные границы и небольшой объём. Для реального малого магазина монолит дешевле, но здесь микросервисы требуются заданием.
+Сигнал NOTIFY недолговечен, событие долговечно в таблице. При старте/переподключении сначала commit LISTEN, затем разово drain накопленного и переход к ожиданию; сигнал, пришедший во время drain, обрабатывается после него. Ошибка известной отправки вызывает повтор с backoff/при восстановлении соединения, не таймер поиска новых событий. Издатель supervised: необработанная ошибка приводит к перезапуску и восстановлению. [PostgreSQL LISTEN](https://www.postgresql.org/docs/current/sql-listen.html), [NOTIFY](https://www.postgresql.org/docs/current/sql-notify.html).
 
-HTTP даёт непосредственный результат резерва; асинхронный резерв потребовал бы дополнительных событий и ожиданий. Уведомления асинхронны, чтобы их отказ не блокировал покупку; синхронный вызов сделал бы оформление зависимым от Notification. PostgreSQL во всех службах сокращает число технологий; RabbitMQ достаточен для очереди итоговых событий.
+Notification транзакционно создаёт запись с UQ event_id и следующим sequence под блокировкой UserStream, затем ACK RabbitMQ и сигнал активным подключениям. Повтор не вставляет вторую запись, но может повторно пробудить доставку. Повреждённые сообщения — в `notifications.dead`; при сбое БД нет ACK и горячего requeue. Идентификатор получателя берётся из события, а подключение сопоставляется проверенному JWT sub; вызовов в Auth DB нет.
 
-### 5.2. Оркестрируемая сага
+### 4.5. WebSocket-доставка пользователю
 
-Оркестратор — Order Service. Он сохраняет фазу перед внешним действием и повторяет идемпотентные команды; 2PC нет.
+Hub `/hubs/notifications` находится в Notification Service. **SignalR на клиенте и сервере разрешает только WebSockets; SSE и Long Polling выключены**, клиент использует skipNegotiation. Nginx проксирует Upgrade и сохраняет соединение. JWT проверяется при подключении; соединение закрывается по exp, требуется новый вход. В браузере accessTokenFactory может передать access_token в query только этого hub; query/токены исключаются из логов Nginx, приложения и трейсов. В облаке HTTPS/WSS, локальная демонстрация только на localhost. [Конфигурация SignalR](https://learn.microsoft.com/en-us/aspnet/core/signalr/configuration).
+
+Контракт: клиент вызывает `Resume(after_sequence)`; сервер посылает `NotificationCreated({id,sequence,type,payload,created_at})`; клиент подтверждает обработанный курсор `Ack(sequence)`. User ID клиент не выбирает. На подключении сервер сначала регистрирует ожидание пользователя, затем читает историю после курсора и обрабатывает накопившиеся сигналы. Курсор клиентского интерфейса хранится отдельно по user_id, записи дедуплицируются по id; ACK продвигается только по обработанной последовательности.
+
+При новом сообщении сервер отправляет его активным подключениям; при разрыве — reconnect с backoff и Resume, а не опрос. История читается по подключению/сигналу/ручному открытию, без таймера. Heartbeat поддерживает соединение и не опрашивает уведомления. DeliveryAttempt сохраняет попытку и sent_at после записи в соединение; это не доказательство прочтения человеком. Постоянный статус «прочитано» не реализуется. Если push не завершился после commit, разрыв/повтор события/Resume повторно доставляет запись. Дубликаты допустимы, потеря истории при обычном перезапуске — нет.
+
+## 5. Trade-offs и сбои
+
+### 5.1. Декомпозиция и альтернативы
+
+Catalog объединяет товар, пресеты и остаток ради владения каталогом и локального резерва. Cart — изменяемый выбор, Order — сохраняемый процесс покупки, Notification — отдельная история и доставка. Auth выделен из-за пользователей, хешей и ролей. Image выделен шестым сервисом для S3/metadata и выдачи файлов по ID; ему нужна отдельная image_db. Payment остаётся внутри Order. Шесть — осознанное отклонение от ограничения 3–5 исходного ТЗ, требующее согласования. Альтернатива для строгого ТЗ — объединить Image с Catalog и вернуться к пяти; в этой версии по требованию выбран отдельный Image.
+
+HTTP-резерв даёт результат до обещания покупки; async-резерв потребовал бы дополнительных этапов. Async-уведомления не делают покупку зависимой от Notification; синхронные уведомления блокировали бы её при сбое. LISTEN/NOTIFY выбран вместо polling/тяжёлого CDC; требует правильной подписки, drain и supervised-перезапуска. WebSocket даёт персональный push и клиентский ACK; цена — длительные соединения, восстановление курсора и отсутствие автоматического fallback.
+
+### 5.2. Сага оформления
+
+Оркестратор — Order. Он сохраняет фазу перед внешним действием, повторяет идемпотентные команды; общей транзакции/2PC нет.
 
 | Фаза | Действие / переход |
 |---|---|
-| INIT | Сохранить выбор и тестовый исход, вызвать reserve; успех → RESERVED, конфликт → RELEASING |
-| RESERVED | Сохранить снимки, проверить цену и применить исход; успех → FINALIZING, отказ/смена цены → RELEASING |
-| FINALIZING | Повторять complete; после COMPLETED сохранить CONFIRMED + outbox → DONE |
-| RELEASING | Повторять release; после RELEASED сохранить CANCELLED + reason + outbox → DONE |
-| DONE | При успехе удалить исходные строки корзины; затем CLEANED |
+| INIT | Состав и исход оплаты сохранены; reserve → RESERVED, конфликт → RELEASING |
+| RESERVED | Записать снимки и OrderReserved вместе; проверить сумму/исход → FINALIZING либо RELEASING |
+| FINALIZING | Complete; после COMPLETED сохранить CONFIRMED + событие → DONE |
+| RELEASING | Release; после RELEASED сохранить CANCELLED + причину + событие → DONE |
+| DONE | При успехе удалить исходные строки корзины → CLEANED |
 
-В INIT тестовый исход только выбран; при конфликте товара оплата не применяется. Терминальные CONFIRMED/CANCELLED не меняются. FINALIZING не переключается на release из-за тайм-аута. Восстановитель запускается каждые 5 с; один заказ обрабатывается одним исполнителем. TTL резерва отсутствует: после сбоя вещь временно занята, но не освобождается параллельно с продажей.
+В INIT исход симулятора только выбран; конфликт товара не выполняет оплату. FINALIZING не переходит к release из-за тайм-аута. Терминальные статусы неизменяемы. У резерва нет TTL: временно занятая вещь безопаснее параллельного освобождения при продаже. Восстановление заказов каждые 5 с допустимо как отдельная бизнес-задача; оно **не ищет уведомления** и не заменяет событийный outbox. Один исполнитель на заказ.
 
 ### 5.3. Проблемы и решения
 
-| Проблема | Поведение и решение |
+| Проблема | Поведение |
 |---|---|
-| Catalog недоступен / ответ reserve или complete потерян | PROCESSING, повтор той же команды; тайм-аут не равен DECLINED |
-| Crash Order после SOLD | FINALIZING повторяет complete и доводит заказ до CONFIRMED |
-| Broker / Notification недоступен | Итог заказа сохраняется; outbox/очередь ждут возврата компонентов |
-| Crash после commit уведомления до ACK | Повтор не создаёт дубль благодаря event_id |
-| Cart не отвечает после покупки | CONFIRMED сохраняется, очистка повторяется |
-| БД перегружена | Лимиты пула/параллелизма, индексы, пагинация, 503; незаписанная покупка не объявляется успешной |
-| Pod завершился | Kubernetes восстанавливает экземпляр; БД/broker используют PVC, кеш Redis заполняется заново, Order продолжает сохранённые фазы |
-| Redis недоступен | Общий бюджет обращения к кешу 30 мс на запрос, без повторов; Catalog читает БД, ошибка записи в кеш не портит ответ |
-| Долгая задержка события | Экран заказа читает Order; список уведомлений обновляется позднее |
+| Auth недоступен | Новые входы не работают; API продолжают проверять действующие JWT локально |
+| Catalog недоступен / ответ потерян | PROCESSING; повтор с тем же order_id, тайм-аут не равен DECLINED |
+| Crash после SOLD | FINALIZING безопасно завершает заказ |
+| Broker/Notification недоступен | Outbox/очередь сохраняют работу; покупка не отменяется |
+| LISTEN-соединение потеряно | Повторная подписка и drain; NOTIFY не считается хранилищем события |
+| Дубль RabbitMQ/WS | UQ event_id и клиентский id/sequence предотвращают двойной эффект |
+| Cart не очистился | CONFIRMED сохраняется, адресная очистка повторяется |
+| Redis не отвечает | PostgreSQL fallback; потеря кеша не портит остатки |
+| Cart consumer / очередь задержались | Вход в корзину читает наличие через Catalog; push догоняет после восстановления, резерв не использует проекцию |
+| Image/S3 не отвечает | Загрузка admin не завершается успехом; существующие metadata остаются, интерфейс показывает заглушку при недоступном файле |
+| БД перегружена | Пулы/параллелизм, индексы, 503; незаписанный заказ не объявляется успешным |
+| Долгий PROCESSING / push задержался | Интерфейс показывает известное состояние, затем обновляет его по событию; после reconnect выполняет разовую сверку |
+| Pod/telemetry-backend упал | Контроллер восстанавливает Pod; PVC хранит данные, observability не блокирует бизнес-операции |
 
-HTTP: тайм-аут 500 мс на попытку, максимум один дополнительный повтор временной ошибки для безопасной операции; 4xx не повторяются. Затем — восстановление сохранённого процесса. До сохранения Order недоступность БД означает 503, а не обещание фоновой работы. Outbox: backoff 1/2/4/8 с с ростом до 30 с и jitter. Circuit breaker не включён в первую версию: ограничений ожидания и нагрузки достаточно для локальной демонстрации. Redis применяется только для чтения каталога (§2.5).
+HTTP: 500 мс на попытку, максимум один дополнительный повтор временной ошибки безопасной операции; 4xx не повторяются. Вход/загрузка файла имеют отдельные бюджеты. Известные неудачные публикации повторяются с backoff до 30 с и jitter, без периодического поиска новых уведомлений. Circuit breaker не входит в первую версию. Kubernetes и дополнительные инфраструктурные компоненты увеличивают ресурсы/настройки; локальные профили и компактные LGTM/S3-сборки удерживают объём реализации.
 
-Kubernetes добавляет управление экземплярами, probes и декларативное развёртывание, но требует дополнительных YAML и ресурсов. Поэтому Compose сохраняется для разработки, Minikube — для защиты. Автоскейлинг, операторы БД, multi-node и высокая доступность не реализуются.
+## 6. Материалы и статус
 
-## 6. Материалы
+[Матрица ТЗ](compliance.md) · [План реализации](implementation-plan.md) · [Исходное задание](assignment.txt).
 
-[Соответствие ТЗ](compliance.md) · [План реализации](implementation-plan.md) · [Исходное задание](assignment.txt).
-
-Это результат этапа проектирования: бизнес-сервисы, Compose-конфигурация, Kubernetes-манифесты и измерения выполняются при последующей реализации. Документ не заявляет уже работающий кластер.
+Это готовый результат проектирования. Бизнес-код, Compose/Kubernetes-манифесты и измерения относятся к следующему этапу; отчёт не заявляет уже работающий кластер или настроенный распределённый CDN.

@@ -1,34 +1,59 @@
 flowchart TB
-    UI["Покупатель / веб-интерфейс"]
-    subgraph LOCAL["Kubernetes / Minikube: namespace rewear — или Docker Compose"]
-        GW["Nginx gateway — маршрутизация и интерфейс"]
-        C["Catalog — товары, цены, уникальные остатки"]
-        A["Cart — выбранные вещи без резерва"]
-        O["Order — оркестратор саги; заказы, тестовая оплата, outbox"]
-        N["Notification — уведомления; ACK после commit, UQ event_id"]
+    UI["Браузер customer/admin: главная, страницы, пресеты, корзина"]
+    subgraph LOCAL["Локально: Compose / Minikube; 6 сервисов требуют согласования с ТЗ 3–5"]
+        GW["Nginx: HTTP, WebSocket Upgrade, /media cache; без распределённого CDN"]
+        C["Catalog: товар, остаток, CatalogPage и SearchPreset/page_id; outbox"]
+        A["Cart: до 10 вещей, без резерва; consumer доступности и outbox"]
+        O["Order: оркестратор саги, тестовая оплата, outbox"]
+        N["Notification: кому/что/когда; SignalR только WebSocket; ACK после commit"]
+        AUTH["Auth: JWT, customer/admin, хеши"]
+        I["Image: upload admin, metadata и GET изображения по ID"]
         CD[("catalog_db / PostgreSQL")]
         AD[("cart_db / PostgreSQL")]
         OD[("order_db / PostgreSQL")]
         ND[("notification_db / PostgreSQL")]
-        R[("Redis / кеш Catalog<br/>Описания, цены для показа, результаты фильтрации<br/>TTL 60 с; наличие и резерв — PostgreSQL<br/>При отказе Redis — чтение PostgreSQL")]
+        AUTHDB[("auth_db / PostgreSQL")]
+        IDB[("image_db / PostgreSQL")]
+        R[("Redis: общая первая страница; TTL 60 с; без остатков")]
+        S3[("Локальный S3 / SeaweedFS: файлы на volume")]
+        OBS["OTel Collector → Loki / Tempo / Mimir → Grafana"]
         subgraph BROKER["RabbitMQ"]
-            EX["Exchange: orders.events"]
-            Q["Queue: notifications.orders"]
-            EX -.->|"bindings: order.confirmed / order.cancelled"| Q
+            EX["Exchange: shop.events"]
+            CQ["Queue: cart.availability"]
+            NQ["Queue: notifications.events"]
+            EX -.->|"catalog.availability_changed"| CQ
+            EX -.->|"cart.item_added / item_availability_changed; order.reserved / confirmed / cancelled"| NQ
         end
-        GW -->|"HTTP: каталог"| C
+        GW -->|"HTTP: каталог/admin и страницы/пресеты"| C
         GW -->|"HTTP: корзина"| A
         GW -->|"HTTP: заказ"| O
-        GW -->|"HTTP: уведомления"| N
-        A -->|"HTTP: batch products"| C
-        O -->|"HTTP: reserve / read / complete / release"| C
+        GW -->|"HTTP: история"| N
+        GW -->|"HTTP: register/login/me"| AUTH
+        GW -->|"HTTP: /media cache → GET /images/id; upload admin"| I
+        N -->|"WebSocket push"| GW
+        A -->|"HTTP: live товары/наличие"| C
         O -->|"HTTP: cart / remove-items"| A
-        C -->|"RESP: cache-aside"| R
+        O -->|"HTTP: reserve / complete / release"| C
+        C -->|"HTTP: image metadata"| I
         C -->|SQL| CD
         A -->|SQL| AD
         O -->|SQL| OD
         N -->|SQL| ND
-        O -.->|"AMQP: OrderConfirmed / OrderCancelled"| EX
-        Q -.->|"AMQP: итог заказа"| N
+        AUTH -->|SQL| AUTHDB
+        I -->|SQL| IDB
+        C -->|"RESP: page=1; fallback на БД"| R
+        I -->|"S3 API: файлы"| S3
+        C -.->|"ProductAvailabilityChanged: version/status"| EX
+        CQ -.->|"basicConsume push; version/dedup"| A
+        A -.->|"CartItemAdded / CartItemAvailabilityChanged: user_id"| EX
+        O -.->|"OrderReserved / OrderConfirmed / OrderCancelled"| EX
+        NQ -.->|"basicConsume push"| N
+        C -->|OTLP| OBS
+        A -->|OTLP| OBS
+        O -->|OTLP| OBS
+        N -->|OTLP| OBS
+        AUTH -->|OTLP| OBS
+        I -->|OTLP| OBS
     end
-    UI -->|"HTTP: локальный gateway"| GW
+    UI -->|"HTTP / JWT; JSON содержит image_url"| GW
+    GW -->|"WebSocket без SSE/Long Polling"| UI
